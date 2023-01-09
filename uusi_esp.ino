@@ -6,7 +6,7 @@
 //Virrankulutuksen optimointia varten:
 #include "driver/adc.h"
 
-//HAVAINNOLLISTAMISTA VARTEN:
+//HAVAINNOLLISTAMISTA VARTEN...
 int keskiledPIN=13;
 
 //+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
