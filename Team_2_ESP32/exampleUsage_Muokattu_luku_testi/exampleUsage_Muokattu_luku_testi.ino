@@ -127,4 +127,6 @@ void loop() {
         //Serial.println((float)temperatureTicks / 200.0);
         Serial.println((double)temperatureTicks / 200.0);
     }
+
+  Wire.Write
 }
