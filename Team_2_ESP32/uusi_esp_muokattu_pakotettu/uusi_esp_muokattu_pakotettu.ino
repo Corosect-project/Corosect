@@ -4,7 +4,7 @@
 #include <SparkFun_STC3x_Arduino_Library.h>
 #include <RunningMedian.h>
 //Virrankulutuksen optimointia varten:
-//#include "driver/adc.h"
+#include "driver/adc.h"
 
 
 //#define RGB_BUILTIN_ON 
@@ -18,6 +18,7 @@ char ssid[] = "toukkapurkki";        // your network SSID (name)
 char pass[] = "biomassa";    // your network password (use for WPA, or use as key for WEP)
 //char ssid[] = "panoulu";        // your network SSID (name)
 //char pass[] = "";    // your network password (use for WPA, or use as key for WEP)
+
 WiFiClient espClient;
 PubSubClient client(espClient); 
 
@@ -64,11 +65,10 @@ long viimeksi_tehdyn_lahetyksen_aikaleima=0;
 long aikaleima_juuri_nyt; 
 long aikaero_viimeisimpaan_lahetykseen;
 
-int wlanLED=13;
 
 void setup(){
 
-  pinMode(keskiledPIN,OUTPUT);
+  //pinMode(keskiledPIN,OUTPUT);
 
   Serial.begin(115200);
   Serial.println("Aloitetaan...");
@@ -77,6 +77,7 @@ void setup(){
   //CO2-anturiasioita:
   Wire.begin();
   delay(50);
+  
   if(co2_sensori.begin() == false)
   {
     Serial.println("Sensoria ei löytynyt, mutta jatketaan silti...");
@@ -158,6 +159,7 @@ float mittaa_nh3(){
 
 
 //Maaritetaan lahetystoiminto:
+
 void laheta_tieto(float lukema_raw,char lahetys_topic[]){
   
   //Seuraavat tuleee olla kommentoituna mikäli WIFIä ei ole käytössä...(testausvaiheet...)
@@ -247,12 +249,12 @@ void disableWiFi(){
     WiFi.disconnect(true);  // Disconnect from the network
     WiFi.mode(WIFI_OFF);    // Switch WiFi off
     //Ilmaistaan keskiledin sammutuksella se, että WLAN on pois päältä...
-    digitalWrite(keskiledPIN, LOW);
+    //digitalWrite(keskiledPIN, LOW);
 }
 
 void enableWiFi(){
     //Ilmaistaan keskiledillä se, että WLAN on päällä...
-    digitalWrite(keskiledPIN, HIGH);
+    //digitalWrite(keskiledPIN, HIGH);
     //adc_power_on();
     WiFi.disconnect(false);  // Reconnect the network
     WiFi.mode(WIFI_STA);    // Switch WiFi off
@@ -294,7 +296,8 @@ void loop() {
 
   //Mittausten ajaksi laitetaan vihreä ledi päälle...
   neopixelWrite(RGB_BUILTIN,0,128,0);
-
+  delay(100);
+  
   temp_raw=mittaa_temp();
   delay(perusviive);
   humidity_raw=mittaa_humidity();
@@ -305,7 +308,7 @@ void loop() {
   delay(perusviive);
   nh3_raw=mittaa_nh3();
   delay(perusviive);
-
+  
   neopixelWrite(RGB_BUILTIN,0,0,0);
 
   aikaleima_juuri_nyt=millis();
@@ -315,7 +318,7 @@ void loop() {
   Serial.print(aikaero_viimeisimpaan_lahetykseen);
 
   
-
+  
   if (aikaero_viimeisimpaan_lahetykseen>tietojen_lahetysvali) {
 
     enableWiFi();
