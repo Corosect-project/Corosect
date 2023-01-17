@@ -1,3 +1,9 @@
+/*
+  Koodi alunperin toimii ESP32-WROOM-32E.
+  Koodia muutettu niin että se toimii ESP32-C3-WROOM-02.
+  Muokkaaja Petteri Karjalainen
+*/
+
 #include <Wire.h>
 #include <WiFi.h>
 #include <PubSubClient.h>
@@ -6,8 +12,6 @@
 //Virrankulutuksen optimointia varten:
 #include "driver/adc.h"
 
-
-//#define RGB_BUILTIN_ON 
 //HAVAINNOLLISTAMISTA VARTEN...
 int keskiledPIN=13;
 

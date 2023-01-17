@@ -68,7 +68,7 @@ int wlanLED=13;
 
 void setup(){
 
-  pinMode(keskiledPIN,OUTPUT);
+  //pinMode(keskiledPIN,OUTPUT);
 
   Serial.begin(115200);
   Serial.println("Aloitetaan...");
@@ -247,12 +247,12 @@ void disableWiFi(){
     WiFi.disconnect(true);  // Disconnect from the network
     WiFi.mode(WIFI_OFF);    // Switch WiFi off
     //Ilmaistaan keskiledin sammutuksella se, että WLAN on pois päältä...
-    digitalWrite(keskiledPIN, LOW);
+    //digitalWrite(keskiledPIN, LOW);
 }
 
 void enableWiFi(){
     //Ilmaistaan keskiledillä se, että WLAN on päällä...
-    digitalWrite(keskiledPIN, HIGH);
+    //digitalWrite(keskiledPIN, HIGH);
     //adc_power_on();
     WiFi.disconnect(false);  // Reconnect the network
     WiFi.mode(WIFI_STA);    // Switch WiFi off
