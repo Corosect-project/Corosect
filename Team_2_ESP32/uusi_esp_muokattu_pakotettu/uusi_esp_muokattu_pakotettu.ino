@@ -338,7 +338,6 @@ void loop() {
     if (onko_yhteys_kunnossa==1)
     {
       //Ja lähetystoiminnot:
-      //Serial.println("|");
       Serial.println("|");
       Serial.println("");
       Serial.println("#######################################################");
