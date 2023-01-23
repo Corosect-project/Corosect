@@ -6,9 +6,9 @@
 #include <Arduino.h>
 #include <Wire.h>
 
-#define i2caddr 0x29 //i2c osoite anturille oletuksena 0x29 (41)
-bool muuttuja = true;
-double arvo1 = 0, arvo2 = 0;
+int i2caddr = 0x29; //i2c osoite anturille oletuksena 0x29 (41)
+bool muuttuja = true; //Muuttuva arvo i2c
+byte arvo1, arvo2; //Bitti arvot tallennus
 void setup() {
   Serial.begin(115200);
   while(!Serial){
@@ -63,7 +63,7 @@ void loop() {
   delay(100); //Tarvitaan viive ennen lukua (saattaa toimia pienemmälläkin)
 
   /* Luetaan saadut tiedot */
-  Wire.requestFrom(0x29, 2); //luetaan 2 tavua, tiedot kaasusta (ei lämpötilaa)
+  Wire.requestFrom(i2caddr, 6); //luetaan 2 tavua, tiedot kaasusta (ei lämpötilaa)
   while(Wire.available()){
     //tallennaluku(); //Tallennetaan luku
     Serial.print(byte(Wire.read()));
