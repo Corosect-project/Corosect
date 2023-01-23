@@ -6,15 +6,30 @@
 #include <Arduino.h>
 #include <Wire.h>
 #include <inttypes.h>
+#include <WiFi.h>
+#include <PubSubClient.h>
 
 #define i2caddr 0x29 //i2c osoite anturille oletuksena 0x29 (41)
 
+//Wifi
+char ssid[]="";
+char pass[]="";
+
+//MQTT
+char broker[]="10.0.0.175";
+int port = 1883;
+char topic[]="test";
+
+WiFiClient espClient;
+PubSubClient client(espClient);
 
 void setup() {
   Serial.begin(115200);
   while(!Serial){
     delay(100);
   }
+
+  
 
   Wire.begin();
 
@@ -25,6 +40,7 @@ void setup() {
 
 
   /* Self test */
+  Serial.print("Itsetesti (00 == OK): ");
   Wire.beginTransmission(i2caddr);
   Wire.write(0x36);Wire.write(0x5B); //0x365B Self test
   Wire.endTransmission();
@@ -36,6 +52,7 @@ void setup() {
   while(Wire.available()) {
     Serial.print(Wire.read());
   }
+  Serial.println();
 
   /* Asetetaan kaasu CO2 ilmassa 0-100% */
   Wire.beginTransmission(i2caddr);
@@ -43,6 +60,37 @@ void setup() {
   Wire.write(0x00);Wire.write(0x01); //arg 0x0001 CO2 in air 0 to 100
   Wire.endTransmission();
 
+  enableWifi();
+  connectMQTT();
+
+}
+
+void enableWifi(){
+  WiFi.disconnect(false);
+  WiFi.mode(WIFI_STA);
+
+  Serial.println("Käynnistetään wlan");
+  WiFi.begin(ssid,pass);
+  //Tässä vain jumitetaan kunnes yhteys löytyy, ei kovin hyvä jos wifiä ei löydy, mutta toimii tätä varten
+  while(WiFi.status() != WL_CONNECTED){
+    delay(500);
+    Serial.print(".");
+  }
+  
+  Serial.println("yhdistetty!");
+  //Aseta MQTT palvelin
+  client.setServer(broker, port);
+}
+
+void connectMQTT(){
+  Serial.println("yhdistetään mqtt...");
+  while(!client.connected()){
+    Serial.print(client.connect("esp32"));
+    Serial.println(client.state());
+    delay(500);
+  }
+   
+   Serial.println("mqtt yhdistetty");
 }
 
 void loop() {
@@ -68,6 +116,16 @@ void loop() {
   //liitetään molemmat arvot samaan
   result = ((uint16_t)bytes[0]<<8) | (uint16_t)bytes[1]; //rullataan ensimmäistä tavua vasemmalle 8 paikkaa ja sitten bittitason OR, jotta saadaan yksi 16 bittinen arvo.
   Serial.println(result);
+
+  int len = snprintf(NULL,0,"%d",result); //Hankitaan mitatun datan pituus
+  char* sResult = (char*)malloc(len*sizeof(char)+1); //Varataan muistia mjonolle jonka pituus on mittaustulos + NULL
+  snprintf(sResult, len+1, "%d", result);//Kirjataan tulos varattuun merkkijonoon
+ 
+  client.publish(topic,sResult);//Lähetetään mitattu tieto MQTT brokerille
+  
+  free(sResult);//Vapautetaan muisti
+
+  
   //Tarkistusta varten
   /*Serial.print("\t");
   Serial.print(bytes[0]);
