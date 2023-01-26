@@ -1,7 +1,7 @@
 /*
- * Copyright (c) 2012-2014 Wind River Systems, Inc.
+ * Copyright (c) 2023 OAMK Corosect-project.
  *
- * SPDX-License-Identifier: Apache-2.0
+ * SPDX-License-Identifier: MIT
  */
 
 #include <dk_buttons_and_leds.h>
@@ -56,7 +56,6 @@ static inline void clock_pulse() {
 
 int read_an3_data(nrfx_spi_t *instance, nrfx_spi_xfer_desc_t *transf) {
   uint32_t ready = 1;
-  uint32_t res = 0;
   do {
     clear_cs();
     ready = nrf_gpio_pin_read(SDO_PIN);
@@ -67,38 +66,9 @@ int read_an3_data(nrfx_spi_t *instance, nrfx_spi_xfer_desc_t *transf) {
 
   clear_cs();
   k_sleep(K_MSEC(1));
-    struct
-    {
-      uint8_t OL : 1;
-      uint8_t OH : 1;
-      uint8_t SIGN : 1;
-    } flags;
-
-    for (size_t i = 0; i < 24; i++) {
-      nrf_gpio_pin_clear(SCK_PIN);
-      k_sleep(K_MSEC(1));
-      nrf_gpio_pin_set(SCK_PIN);
-      switch (i) {
-        case 0:
-          flags.OL = nrf_gpio_pin_read(SDO_PIN);
-          break;
-        case 1:
-          flags.OH = nrf_gpio_pin_read(SDO_PIN);
-          break;
-        case 2:
-          flags.SIGN = nrf_gpio_pin_read(SDO_PIN);
-          break;
-        default:
-          res <<= 1;
-          res |= nrf_gpio_pin_read(SDO_PIN);
-          break;
-      }
-      k_sleep(K_MSEC(1));
-    }
-  // int err = nrfx_spi_xfer(instance, transf, 0);
+  int err = nrfx_spi_xfer(instance, transf, 0);
   set_cs();
-  printk("%d %d %d\n", flags.OL, flags.OH, flags.SIGN);
-  return res;
+  return err;
 }
 
 void main(void) {
@@ -113,40 +83,26 @@ void main(void) {
   bt_ready();
 
   nrfx_spi_t instance = NRFX_SPI_INSTANCE(0);
-  nrfx_spi_config_t config = NRFX_SPI_DEFAULT_CONFIG(SCK_PIN, NRFX_SPI_PIN_NOT_USED, SDO_PIN, NRFX_SPI_PIN_NOT_USED);
+  nrfx_spi_config_t config = NRFX_SPI_DEFAULT_CONFIG(
+      SCK_PIN,
+      NRFX_SPI_PIN_NOT_USED,
+      SDO_PIN, NRFX_SPI_PIN_NOT_USED);
   config.mode = NRF_SPI_MODE_3;
   config.frequency = SPI_FREQUENCY_FREQUENCY_K125;
   nrf_gpio_cfg_output(CS_PIN);
-  nrf_gpio_cfg_input(SDO_PIN, NRF_GPIO_PIN_PULLUP);
-  nrf_gpio_cfg_output(SCK_PIN);
   set_cs();
   nrf_gpio_pin_set(SCK_PIN);
-  // nrfx_spi_init(&instance, &config, NULL, NULL);
+  nrfx_spi_init(&instance, &config, NULL, NULL);
 
   uint8_t rx_buff[3];
   nrfx_spi_xfer_desc_t transf = NRFX_SPI_XFER_RX(rx_buff, 3);
-
-  // clear_cs();
-  // for (size_t i = 0; i < 24; i++) clock_pulse();
-  // set_cs();
-  // k_sleep(K_MSEC(2000));
-  // clear_cs();
-  // k_sleep(K_MSEC(1));
-  // set_cs();
 
   while (!quit) {
     int err = read_an3_data(&instance, &transf);
     printk("ERROR_CODE: %d\n", err);
     if (err == NRFX_SUCCESS)
       printk("DATA: 0x%x 0x%x 0x%x\n", rx_buff[0], rx_buff[1], rx_buff[2]);
-    // // dk_set_leds(DK_ALL_LEDS_MSK);
-    // // for (size_t i = 0; i < 4; i++) {
-    // //   k_sleep(K_MSEC(1000));
-    // //   dk_set_led(i, 0);
-    // // }
-    // clear_cs();
-    // k_sleep(K_MSEC(2000));
-    // set_cs();
+
     k_sleep(K_MSEC(2000));
   }
   printk("QUIT\n");
