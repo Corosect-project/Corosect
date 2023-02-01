@@ -10,6 +10,15 @@
 #include <PubSubClient.h>
 
 #define i2caddr 0x29 //i2c osoite anturille oletuksena 0x29 (41)
+#define WL_MAX_ATTEMPTS 4 //Maksimimäärä sallittuja yrityksiä wlanin yhdistämiselle
+
+enum{
+  WL_NOT_CONNECTED, //Nettiä ei yhdistetty eikä ole yritetty
+  WL_CONNECT_SUCCESS, //Netti on yhdistetty
+  WL_CONNECT_ERROR //Nettiä ei ole yhdistetty ja on yritetty
+} WLAN_STATE;
+
+
 
 //Wifi
 char ssid[]="";
@@ -29,9 +38,9 @@ void setup() {
     delay(100);
   }
 
-  
-
   Wire.begin();
+
+  WLAN_STATE = WL_NOT_CONNECTED; //Aloitustilassa oletetaan wlan pois päältä
 
   /* Poistetaan CRC käytöstä */
   Wire.beginTransmission(i2caddr);
@@ -60,26 +69,46 @@ void setup() {
   Wire.write(0x00);Wire.write(0x01); //arg 0x0001 CO2 in air 0 to 100
   Wire.endTransmission();
 
-  enableWifi();
+  checkStateAndConnect();
   connectMQTT();
 
 }
 
+void checkStateAndConnect(){
+  if(WLAN_STATE == WL_NOT_CONNECTED){
+    enableWifi(); //Oletetaan, että netti löytyy sieltä mistä pitääkin ja yhdistetään
+  }else if(WLAN_STATE == WL_CONNECT_ERROR){
+    delay(5000); //Odotetaan pitempi aika jospa se netti tulisi sillä aikaa takaisin
+    enableWifi();
+  }
+  
+}
+
 void enableWifi(){
+  int attempts = 0;
   WiFi.disconnect(false);
   WiFi.mode(WIFI_STA);
 
   Serial.println("Käynnistetään wlan");
   WiFi.begin(ssid,pass);
-  //Tässä vain jumitetaan kunnes yhteys löytyy, ei kovin hyvä jos wifiä ei löydy, mutta toimii tätä varten
-  while(WiFi.status() != WL_CONNECTED){
-    delay(500);
-    Serial.print(".");
-  }
   
-  Serial.println("yhdistetty!");
-  //Aseta MQTT palvelin
-  client.setServer(broker, port);
+  while(WiFi.status() != WL_CONNECTED){
+     if(attempts >= WL_MAX_ATTEMPTS){ 
+      WLAN_STATE = WL_CONNECT_ERROR;
+      break;
+    }
+    delay(1000);
+    Serial.print(".");
+    ++attempts;
+  }
+
+  if(WLAN_STATE == WL_CONNECT_ERROR){
+    Serial.print("Wlaniin yhdistäminen epäonnistui, yrityksiä: ");
+    Serial.println(attempts);
+  }else{
+    Serial.println("Wlan yhdistetty onnistuneesti");
+  }
+ 
 }
 
 void connectMQTT(){
