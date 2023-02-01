@@ -9,7 +9,7 @@
 #include <WiFi.h>
 #include <PubSubClient.h>
 
-#define i2caddr 0x29 //i2c osoite anturille oletuksena 0x29 (41)
+#define co2_addr 0x29 //i2c osoite co2 anturille, oletuksena 0x29 (41)
 #define WL_MAX_ATTEMPTS 4 //Maksimimäärä sallittuja yrityksiä wlanin yhdistämiselle
 
 enum{
@@ -17,8 +17,6 @@ enum{
   WL_CONNECT_SUCCESS, //Netti on yhdistetty
   WL_CONNECT_ERROR //Nettiä ei ole yhdistetty ja on yritetty
 } WLAN_STATE;
-
-
 
 //Wifi
 char ssid[]="";
@@ -71,7 +69,6 @@ void setup() {
 
   checkStateAndConnect();
   connectMQTT();
-
 }
 
 void checkStateAndConnect(){
@@ -81,7 +78,6 @@ void checkStateAndConnect(){
     delay(5000); //Odotetaan pitempi aika jospa se netti tulisi sillä aikaa takaisin
     enableWifi();
   }
-  
 }
 
 void enableWifi(){
@@ -108,7 +104,6 @@ void enableWifi(){
   }else{
     Serial.println("Wlan yhdistetty onnistuneesti");
   }
- 
 }
 
 void connectMQTT(){
@@ -122,9 +117,7 @@ void connectMQTT(){
    Serial.println("mqtt yhdistetty");
 }
 
-void loop() {
-  delay(2000);
-
+uint16_t readCo2Sensor(){
   /* Mitataan kaasu */
   Wire.beginTransmission(i2caddr);
   Wire.write(0x36);Wire.write(0x39); //0x3639 measure gas concentration
@@ -145,6 +138,35 @@ void loop() {
   //liitetään molemmat arvot samaan
   result = ((uint16_t)bytes[0]<<8) | (uint16_t)bytes[1]; //rullataan ensimmäistä tavua vasemmalle 8 paikkaa ja sitten bittitason OR, jotta saadaan yksi 16 bittinen arvo.
   Serial.println(result);
+
+  return result;
+}
+
+void loop() {
+  delay(2000);
+
+  /* Mitataan kaasu 
+  Wire.beginTransmission(i2caddr);
+  Wire.write(0x36);Wire.write(0x39); //0x3639 measure gas concentration
+  Wire.endTransmission();
+
+  delay(100); //Tarvitaan viive ennen lukua (saattaa toimia pienemmälläkin)
+  
+  int i = 0;
+  uint8_t bytes[2]={0,0}; //Voidaan laajentaa jos halutaan lukea myös lämpötila
+  uint16_t result=0;
+  
+  /* Luetaan saadut tiedot 
+  Wire.requestFrom(i2caddr, 2); //luetaan 2 tavua, tiedot kaasusta (ei lämpötilaa)
+  while(Wire.available()){
+    bytes[i] = Wire.read(); //Data tulee MSB ensin 
+    ++i;
+  }
+  //liitetään molemmat arvot samaan
+  result = ((uint16_t)bytes[0]<<8) | (uint16_t)bytes[1]; //rullataan ensimmäistä tavua vasemmalle 8 paikkaa ja sitten bittitason OR, jotta saadaan yksi 16 bittinen arvo.
+  Serial.println(result);*/
+
+  uint16_t result = readCo2Sensor();
 
   int len = snprintf(NULL,0,"%d",result); //Hankitaan mitatun datan pituus
   char* sResult = (char*)malloc(len*sizeof(char)+1); //Varataan muistia mjonolle jonka pituus on mittaustulos + NULL
