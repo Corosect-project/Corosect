@@ -99,7 +99,8 @@ void enableWifi(){
 
   /* En ole täysin tyytyväinen tähän, sisältää luultavasti jonkinlaisen virheen/virheitä.
    * Vaatii siis varmaan uudelleenkirjoituksen joskus pian(tm)*/
-  while(WiFi.status() != WL_CONNECTED){
+   //TODO: keksi järkevä tapa hoitaa tämä
+  while(WiFi.status() != WL_CONNECTED){ 
      if(attempts >= WL_MAX_ATTEMPTS){ //Yritysten määrä ylittyi, poistutaan loopista ja asetetaan tilaksi WLAN_CONNECT_ERROR
       WLAN_STATE = WLAN_CONNECT_ERROR;
       break;
@@ -123,7 +124,7 @@ void connectMQTT(){
   client.setServer(broker,port);
   Serial.println("yhdistetään mqtt...");
   /* Tarvitsee myös jonkinlaisen tarkistuksen, turha pitää wlania päällä jos mqtt ei yhdistä */
-  while(!client.connected()){
+  while(!client.connected()){ //TODO: kunnon tarkistus tähän
     Serial.print(client.connect(devname));
     Serial.println(client.state());
     delay(1000);
@@ -148,7 +149,7 @@ void readCo2Sensor(){
     bytes[i] = Wire.read(); //Data tulee MSB ensin 
     ++i;
   }
-  //liitetään molemmat arvot samaan
+  //liitetään molemmat tavut yhdeksi arvoksi
   co2_result = ((uint16_t)bytes[0]<<8) | (uint16_t)bytes[1]; //rullataan ensimmäistä tavua vasemmalle 8 paikkaa ja sitten bittitason OR, jotta saadaan yksi 16 bittinen arvo.
   temp_result = ((uint16_t)bytes[2] << 8) | (uint16_t)bytes[3]; //sama mutta lämpötilalle
   
@@ -168,6 +169,10 @@ void sendResult(uint16_t val, char* topic){
   int len = snprintf(NULL,0,"%d",val); //Hankitaan mitatun datan pituus
   char* sResult = (char*)malloc((len+1)*sizeof(char)); //Varataan muistia mjonolle jonka pituus on mittaustulos + NULL
   snprintf(sResult, len+1, "%d", val);//Kirjataan tulos varattuun merkkijonoon
+
+  if(!client.connected()){ //TODO: oikea virheenkäsittely eikä raakaa voimaa
+    connectMQTT();
+  }
  
   client.publish(topic,sResult);//Lähetetään mitattu tieto MQTT brokerille
   
