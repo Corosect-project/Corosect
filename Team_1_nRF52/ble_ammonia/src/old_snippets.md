@@ -1,6 +1,6 @@
 # read_an3_data
 
-``` c
+```c
  uint32_t res = 0;
  struct
 {
@@ -33,20 +33,27 @@ for (size_t i = 0; i < 24; i++) {
 
 printk("%d %d %d\n", flags.OL, flags.OH, flags.SIGN);
 ```
+
 # main
 
-```` c
+```c
+if (ERROR(dk_leds_init()))
+  printk("Error initializing leds");
+if (ERROR(dk_buttons_init(button_handler)))
+  printk("Error initializing buttons");
+
+
 nrf_gpio_cfg_input(SDO_PIN, NRF_GPIO_PIN_PULLUP);
 nrf_gpio_cfg_output(SCK_PIN);
 
 while (!quit) {
-    dk_set_leds(DK_ALL_LEDS_MSK);
-    for (size_t i = 0; i < 4; i++) {
-      k_sleep(K_MSEC(1000));
-      dk_set_led(i, 0);
-    }
-    clear_cs();
-    k_sleep(K_MSEC(2000));
-    set_cs();
+  dk_set_leds(DK_ALL_LEDS_MSK);
+  for (size_t i = 0; i < 4; i++) {
+    k_sleep(K_MSEC(1000));
+    dk_set_led(i, 0);
+  }
+  clear_cs();
+  k_sleep(K_MSEC(2000));
+  set_cs();
 }
-````
+```
