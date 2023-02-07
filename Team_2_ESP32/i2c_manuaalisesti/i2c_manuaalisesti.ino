@@ -14,23 +14,26 @@
 #define MQTT_MAX_ATTEMPTS 5 //Maksimimäärä sallittuja yrityksiä wlanin yhdistämiselle
 
 enum{
-  WLAN_NOT_CONNECTED, //Nettiä ei yhdistetty eikä ole yritetty
-  WLAN_CONNECT_SUCCESS, //Netti on yhdistetty
-  WLAN_CONNECT_ERROR //Nettiä ei ole yhdistetty ja on yritetty
-} WLAN_STATE;
+    PROGRAM_START,
+    WLAN_NOT_FOUND,
+    WLAN_FOUND,
+    WLAN_NOT_CONNECTED,
+    WLAN_CONNECT_SUCCESS,
+    WLAN_CONNECT_ERROR,
+    MQTT_CONNECT_SUCCESS,
+    MQTT_CONNECT_ERROR,
+    MEASURING_DATA,
+    SENDING_DATA,
+    ALL_DONE
+}PROGRAM_STATE;
 
-enum{
-  MQTT_NOT_CONNECTED,
-  MQTT_CONNECT_SUCCESS,
-  MQTT_CONNECT_ERROR
-} MQTT_STATE;
 
 //Wifi
 char ssid[]="panoulu";
 char pass[]="";
 
 //MQTT
-char broker[]="100.71.190.209";
+char broker[]="100.64.254.11";
 int port = 1883;
 char devname[] = "esp32";
 
@@ -46,10 +49,10 @@ void setup() {
     delay(100);
   }
 
+  PROGRAM_STATE = PROGRAM_START;
   Wire.begin();
 
-  WLAN_STATE = WLAN_NOT_CONNECTED; //Aloitustilassa oletetaan wlan pois päältä
-  MQTT_STATE = MQTT_NOT_CONNECTED;
+  client.setServer(broker,port); //MQTT asetukset
 
   /* Poistetaan CRC käytöstä */
   Wire.beginTransmission(co2_addr);
@@ -77,100 +80,98 @@ void setup() {
   Wire.write(0x00);Wire.write(0x01); //arg 0x0001 CO2 in air 0 to 100
   Wire.endTransmission();
 
-  checkStateAndConnect();
+  checkWifiAvailable();
+  if(PROGRAM_STATE == WLAN_FOUND){
+    Serial.println("Wifi löytyi");
+  }else{
+    Serial.println("Ei löytynyt");
+    goToSleep(1000);
+  }
+
+//  checkStateAndConnect();
   //connectMQTT();
 }
 
-void checkStateAndConnect(){
-  switch(WLAN_STATE){
-    case WLAN_NOT_CONNECTED: //ei ongelmia edellisellä kerralla
-      enableWifi(); //oletetaan että wifi löytyy 
-      break;
-    case WLAN_CONNECT_ERROR: //oli ongelmia edellisellä kerralla
-      enableWifi(); //yritetään vain uudelleen tässäkin, virheenkäsittely tähän
-      break;
-    case WLAN_CONNECT_SUCCESS:
-      Serial.println("Verkkoyhteys on pystyssä");
-      break;
+void checkWifiAvailable(){
+  bool flag = false;
+  byte n = WiFi.scanNetworks();
+  
+  for(int i = 0; i < n; ++i){
+    Serial.println(WiFi.SSID(i));
+    if(WiFi.SSID(i).compareTo(ssid) == 0){ flag=true; break;}
   }
+  PROGRAM_STATE = (flag) ? WLAN_FOUND : WLAN_NOT_FOUND;
 }
 
-void checkMQTT(){
-  switch(MQTT_STATE){
-    case MQTT_NOT_CONNECTED: //Ei ollut ongelmia edellisellä kerralla
-      connectMQTT(); //yhdistetään
-      break;
-    case MQTT_CONNECT_ERROR: //Oli ongelmia
-      connectMQTT(); //yritetään vain uudelleenyhdistämistä
-      break;
-    case MQTT_CONNECT_SUCCESS:
-      Serial.println("MQTT yhteys on pystyssä");
-      break;
+void connectWifi(){
+    PROGRAM_STATE = WLAN_NOT_CONNECTED;
+    WiFi.begin(ssid,pass);
+
+    int startt = millis();
+    int endt = startt;
+
+    while((endt - startt) <= 1000){ //yritetään yhteyttä 1 sekunnin ajan
+      if(WiFi.status() == WL_CONNECTED){
+        PROGRAM_STATE = WLAN_CONNECT_SUCCESS;
+        break;
+      }else{}
+      delay(10);
+      endt = millis();
+    }
+
+    if(PROGRAM_STATE == WLAN_CONNECT_SUCCESS){
+      Serial.println("Yhdistettiin!");
+    }else{
+      PROGRAM_STATE = WLAN_CONNECT_ERROR;
+      Serial.println("Ei yhdistetty");
+      goToSleep(1000);
+    }
+  
+  
+}
+
+void connectMQTT(){
+  client.connect(devname);
+  int startt = millis();
+  int endt = startt;
+  Serial.println(startt);
+  Serial.println(endt);
+
+
+    while((endt - startt) <= 1000){ //yritetään yhteyttä 1 sekunnin ajan
+      if(client.connected()){
+        PROGRAM_STATE = MQTT_CONNECT_SUCCESS;
+        break;
+     }
+      endt = millis();
+
+    delay(10);
   }
+
+  if(PROGRAM_STATE == MQTT_CONNECT_SUCCESS){
+    Serial.println("MQTT yhteys onnistui!");
+  }else{
+    PROGRAM_STATE = MQTT_CONNECT_ERROR;
+    Serial.println("mqtt yhteys epäonnistui");
+    goToSleep(1000);
+  }
+  
+}
+
+void goToSleep(int ms){
+  PROGRAM_STATE = PROGRAM_START;
+  Serial.println("Krooh pyyh");
+  delay(ms);
 }
 
 void disableWifi(){
   //WiFi pois päältä ja samalla katkeaa MQTT yhteys
   WiFi.disconnect(true); 
   WiFi.mode(WIFI_OFF);
-  WLAN_STATE = WLAN_NOT_CONNECTED;
-  MQTT_STATE = MQTT_NOT_CONNECTED;
+  PROGRAM_STATE = PROGRAM_START;
+
 }
 
-void enableWifi(){
-  int attempts = 0;
-  WiFi.disconnect(false);
-  WiFi.mode(WIFI_STA);
-
-  Serial.println("Käynnistetään wlan");
-  WiFi.begin(ssid,pass);
-
-  /* En ole täysin tyytyväinen tähän, sisältää luultavasti jonkinlaisen virheen/virheitä.
-   * Vaatii siis varmaan uudelleenkirjoituksen joskus pian(tm)*/
-   //TODO: keksi järkevä tapa hoitaa tämä
-  while(WiFi.status() != WL_CONNECTED){ 
-     if(attempts >= WL_MAX_ATTEMPTS){ //Yritysten määrä ylittyi, poistutaan loopista ja asetetaan tilaksi WLAN_CONNECT_ERROR
-      WLAN_STATE = WLAN_CONNECT_ERROR;
-      break;
-    }
-    Serial.print(".");
-    delay(500);
-    ++attempts;
-  }
-
-  if(WLAN_STATE == WLAN_CONNECT_ERROR){ /*Yhdistäminen epäonnistui, kerrotaan yritysten määrä */
-    Serial.print("Wlaniin yhdistäminen epäonnistui, yrityksiä: ");
-    Serial.println(attempts);
-  }else{ /*Toinen vaihtoehto on, että yhdistäminen onnistui, joten asetetaan tilaksi WLAN_CONNECT_SUCCESS */
-    WLAN_STATE = WLAN_CONNECT_SUCCESS;
-    Serial.println("Wlan yhdistetty onnistuneesti");
-    checkMQTT();//Yhdistäminen onnistui, aloitetaan mqtt
-  }
-}
-
-void connectMQTT(){
-  int attempts = 0;
-  client.setServer(broker,port);
-  Serial.println("yhdistetään mqtt");
-  /* Tarvitsee myös jonkinlaisen tarkistuksen, turha pitää wlania päällä jos mqtt ei yhdistä */
-  while(!client.connected()){
-    if(attempts >= MQTT_MAX_ATTEMPTS){
-      MQTT_STATE = MQTT_CONNECT_ERROR;
-      break;
-    }
-    Serial.print(client.connect(devname));
-    Serial.println(client.state());
-    delay(500);
-    ++attempts;
-  }
-
-  if(MQTT_STATE == MQTT_CONNECT_ERROR){
-    Serial.print("MQTT yhdistäminen epäonnistui, yrityksiä: ");
-    Serial.println(attempts);
-  }else{
-    Serial.println("MQTT yhdistetty onnistuneesti");
-  }
-}
 
 void readCo2Sensor(){
   /* Mitataan kaasu */
@@ -211,28 +212,46 @@ void sendResult(uint16_t val, char* topic){
   char* sResult = (char*)malloc((len+1)*sizeof(char)); //Varataan muistia mjonolle jonka pituus on mittaustulos + NULL
   snprintf(sResult, len+1, "%d", val);//Kirjataan tulos varattuun merkkijonoon
 
-  //Varmistetaan että saadaan MQTT yhteys
-  if(!client.connected()){
-    checkMQTT();
-  }else{
-    client.publish(topic,sResult);//Lähetetään mitattu tieto MQTT brokerille
-  }
+  client.publish(topic,sResult);//Lähetetään mitattu tieto MQTT brokerille
   
   free(sResult);//Vapautetaan muisti
 }
 
-void loop() {
-  delay(100);
-  checkStateAndConnect(); //Yhdistetään wifi ja MQTT
-  for(int i = 0; i < 10; ++i){ //Luetaan ja lähetetään nyt testiksi 10 näytettä ihan vaan suoraan
+void readResults(){
+  PROGRAM_STATE = MEASURING_DATA;
+  for(int i = 0; i<10;++i){
     readCo2Sensor();
-    delay(500);
+    delay(100);
   }
-  Serial.println("Lähetys ohi");
+  PROGRAM_STATE = ALL_DONE;
+}
 
-  disableWifi(); //wifi ja MQTT yhteys pois päältä kun on mitattu ja lähetetty
-  delay(5000);
-  
-  
+void handleState(){
+  switch(PROGRAM_STATE){
+    case PROGRAM_START:
+        checkWifiAvailable();
+        break;
+    case WLAN_FOUND:
+        connectWifi();
+        break;
+    case WLAN_CONNECT_SUCCESS:
+        connectMQTT();
+        break;
+    case MQTT_CONNECT_SUCCESS:
+        readResults();
+        break;
+    case ALL_DONE:
+        Serial.println("Mitattu, nukkumaan");
+        goToSleep(5000);
+    default:
+        //lole
+        break;
+  }  
+}
+
+void loop() {
+  delay(1000);
+
+  handleState();
 
 }
