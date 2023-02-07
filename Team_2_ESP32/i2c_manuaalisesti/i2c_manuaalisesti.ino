@@ -12,6 +12,8 @@
 #define co2_addr 0x29 //i2c osoite co2 anturille, oletuksena 0x29 (41)
 #define WL_MAX_ATTEMPTS 5 //Maksimimäärä sallittuja yrityksiä wlanin yhdistämiselle
 #define MQTT_MAX_ATTEMPTS 5 //Maksimimäärä sallittuja yrityksiä wlanin yhdistämiselle
+#define WL_CONNECT_TRY_TIME 1000 //Aika joka yritetään yhdistää wlaninn (ms)
+#define MQTT_CONNECT_TRY_TIME 1000 //sama mqtt
 
 enum{
     PROGRAM_START,
@@ -105,12 +107,13 @@ void checkWifiAvailable(){
 
 void connectWifi(){
     PROGRAM_STATE = WLAN_NOT_CONNECTED;
+    WiFi.mode(WIFI_STA);
     WiFi.begin(ssid,pass);
 
     int startt = millis();
     int endt = startt;
 
-    while((endt - startt) <= 1000){ //yritetään yhteyttä 1 sekunnin ajan
+    while((endt - startt) <= WL_CONNECT_TRY_TIME){ //yritetään yhteyttä 1 sekunnin ajan
       if(WiFi.status() == WL_CONNECTED){
         PROGRAM_STATE = WLAN_CONNECT_SUCCESS;
         break;
@@ -138,7 +141,7 @@ void connectMQTT(){
   Serial.println(endt);
 
 
-    while((endt - startt) <= 1000){ //yritetään yhteyttä 1 sekunnin ajan
+    while((endt - startt) <= MQTT_CONNECT_TRY_TIME){ //yritetään yhteyttä 1 sekunnin ajan
       if(client.connected()){
         PROGRAM_STATE = MQTT_CONNECT_SUCCESS;
         break;
@@ -160,6 +163,7 @@ void connectMQTT(){
 
 void goToSleep(int ms){
   PROGRAM_STATE = PROGRAM_START;
+  disableWifi();
   Serial.println("Krooh pyyh");
   delay(ms);
 }
