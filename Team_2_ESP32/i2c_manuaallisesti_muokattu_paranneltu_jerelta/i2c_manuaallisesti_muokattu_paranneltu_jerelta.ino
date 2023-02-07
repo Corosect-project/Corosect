@@ -13,6 +13,16 @@
 #define WL_MAX_ATTEMPTS 5 //Maksimimäärä sallittuja yrityksiä wlanin yhdistämiselle
 #define MQTT_MAX_ATTEMPTS 5 //Maksimimäärä sallittuja yrityksiä wlanin yhdistämiselle
 
+
+//volatile uint32_t* RTC_CNTL_TIME_UPDATE_REG =  (uint32_t*)0x000C;  //Poistetaan RTC kello käytöstä koska sitä ei tarvita
+//*RTC_CNTL_TIME_UPDATE_REG = (uint32_t)0x28; //Poistetaan RTC kello käytöstä koska sitä ei tarvita 
+
+//RTC kellon poistaminen alkaa
+#define RTC_CNTL_TIME_UPDATE_REG_ADDR       0x000C //RTC kellon osoite
+#define READ_RTC_CNTL_TIME_UPDATE_REG()     (*((volatile uint32_t *)RTC_CNTL_TIME_UPDATE_REG_ADDR)) //Luetaan rtc kellon tila
+#define WRITE_LRTC_CNTL_TIME_UPDATE_REG()   (*((volatile uint32_t *)RTC_CNTL_TIME_UPDATE_REG_ADDR) = (0x28)) //Kirjoitetaan rtc kello pois päältä
+//Kellon poistaminen loppuu 
+
 enum{
   WLAN_NOT_CONNECTED, //Nettiä ei yhdistetty eikä ole yritetty
   WLAN_CONNECT_SUCCESS, //Netti on yhdistetty
@@ -45,6 +55,9 @@ void setup() {
   while(!Serial){
     delay(100);
   }
+
+  Serial.println(READ_RTC_CNTL_TIME_UPDATE_REG()); //Luetaan rtc kellon tila
+
 
   Wire.begin();
 
@@ -84,20 +97,23 @@ void setup() {
 
 
 void sleepstate_ON_Wifi(){ //Laitetaan Wifin virransäästötila päälle ja odotetaan sekuntti
-    Wifi.setSleep(true);
-    while(WLAN_STATE == WLAN_NOT_CONNECTED || WLAN_CONNECT_ERROR){
+    WiFi.setSleep(true); //WiFi nukkumistila
+    while(WLAN_STATE == 0 || 2){
       delay(1000);
+      Serial.println("Ollaan WiFi sleepissä");
+      WLAN_STATE = WLAN_STATE;
     }
-    Wifi.setSleep(false);
+    WiFi.setSleep(false);
 }
 
 void checkStateAndConnect(){
   switch(WLAN_STATE){
     case WLAN_NOT_CONNECTED: //ei ongelmia edellisellä kerralla
-      sleepstate_ON_Wifi();
+      //sleepstate_ON_Wifi();
       enableWifi(); //oletetaan että wifi löytyy 
       break;
     case WLAN_CONNECT_ERROR: //oli ongelmia edellisellä kerralla
+      //sleepstate_ON_Wifi();
       enableWifi(); //yritetään vain uudelleen tässäkin, virheenkäsittely tähän
       break;
     case WLAN_CONNECT_SUCCESS:
