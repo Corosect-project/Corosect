@@ -77,14 +77,14 @@ void loop() {
 }
 
 
-void unitila(){ //Unitila
+void unitila(){ //Unitila Co2 sensorille
   Wire.beginTransmission(i2caddr);
   Wire.write(0x36); //Enter Sleep mode 0x3677
   Wire.write(0x77);
   Wire.endTransmission();
 }
 
-void poistu_unitilasta(){ //Poistutaan unitilasta 
+void poistu_unitilasta(){ //Poistutaan unitilasta Co2 Sensori
   Wire.beginTransmission(i2caddr);
   Wire.write(0x0); //Poistutaan unitilasta
   Wire.endTransmission();
