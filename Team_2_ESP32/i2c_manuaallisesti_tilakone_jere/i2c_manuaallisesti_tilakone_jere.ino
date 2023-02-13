@@ -15,6 +15,14 @@
 #define WL_CONNECT_TRY_TIME 1000 //Aika joka yritetään yhdistää wlaninn (ms)
 #define MQTT_CONNECT_TRY_TIME 1000 //sama mqtt
 
+//Reaaliaika Kellon poistaminen alkaa 
+#define RTC_CNTL_TIMER_XTL_OFF 0x60008000   //Pointteri osoittamaan rekisteriin RTC_CNTL_TIME_UPDATE_REG 
+//Low-Power Management low address 0x6000_8000 + 0x000C
+volatile uint32_t* pointer = (volatile uint32_t*)(RTC_CNTL_TIMER_XTL_OFF+0x000C);
+//Reaaliaika Kellon poistaminen loppuu 
+
+
+
 enum{
     PROGRAM_START,
     WLAN_NOT_FOUND,
@@ -232,23 +240,32 @@ void readResults(){
 void handleState(){
   switch(PROGRAM_STATE){
     case PROGRAM_START:
+        neopixelWrite(RGB_BUILTIN,255,255,255);
         checkWifiAvailable();
         break;
     case WLAN_FOUND:
+        neopixelWrite(RGB_BUILTIN,255,255,0);
         connectWifi();
         break;
     case WLAN_CONNECT_SUCCESS:
+        neopixelWrite(RGB_BUILTIN,0,0,255);
         connectMQTT();
         break;
     case MQTT_CONNECT_SUCCESS:
+        neopixelWrite(RGB_BUILTIN,0,255,0); 
         readResults();
         break;
     case ALL_DONE:
         Serial.println("Mitattu, nukkumaan");
-        neopixelWrite(RGB_BUILTIN,255,0,0);
+        neopixelWrite(RGB_BUILTIN,255,0,0); //Punainen
         WiFi.setSleep(true);
-        esp_sleep_enable_timer_wakeup(5 * 1000000ULL);        
-        esp_deep_sleep_start();
+
+        void sleepi_aika(){
+        esp_sleep_enable_timer_wakeup(5 * 1000000ULL); //Ajastin 5 sekunttia herätys      
+        esp_deep_sleep_start(); //Syvä sleep tila aktivointi
+        esp_light_sleep_start(); //Kevyt sleep tila aktivointi
+        }
+        
         goToSleep(5000);
         WiFi.setSleep(false);
         
