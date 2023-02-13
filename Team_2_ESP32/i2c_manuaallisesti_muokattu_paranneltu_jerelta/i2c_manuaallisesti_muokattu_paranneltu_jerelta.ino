@@ -14,13 +14,20 @@
 #define MQTT_MAX_ATTEMPTS 5 //Maksimimäärä sallittuja yrityksiä wlanin yhdistämiselle
 
 
-//volatile uint32_t* RTC_CNTL_TIME_UPDATE_REG =  (uint32_t*)0x000C;  //Poistetaan RTC kello käytöstä koska sitä ei tarvita
-//*RTC_CNTL_TIME_UPDATE_REG = (uint32_t)0x28; //Poistetaan RTC kello käytöstä koska sitä ei tarvita 
+
 
 //RTC kellon poistaminen alkaa
+/*
+//volatile uint32_t* RTC_CNTL_TIME_UPDATE_REG =  (uint32_t*)0x000C;  //Poistetaan RTC kello käytöstä koska sitä ei tarvita
+
+//RTC_CNTL_TIME_UPDATE_REG = (uint32_t)0x28; //Poistetaan RTC kello käytöstä koska sitä ei tarvita 
 #define RTC_CNTL_TIME_UPDATE_REG_ADDR       0x000C //RTC kellon osoite
 #define READ_RTC_CNTL_TIME_UPDATE_REG()     (*((volatile uint32_t *)RTC_CNTL_TIME_UPDATE_REG_ADDR)) //Luetaan rtc kellon tila
 #define WRITE_LRTC_CNTL_TIME_UPDATE_REG()   (*((volatile uint32_t *)RTC_CNTL_TIME_UPDATE_REG_ADDR) = (0x28)) //Kirjoitetaan rtc kello pois päältä
+*/
+#define RTC_CNTL_TIMER_XTL_OFF 0x60008000   //Pointteri osoittamaan rekisteriin RTC_CNTL_TIME_UPDATE_REG 
+//Low-Power Management low address 0x6000_8000 + 0x000C
+volatile uint32_t* pointer = (volatile uint32_t*)(RTC_CNTL_TIMER_XTL_OFF+0x000C);
 //Kellon poistaminen loppuu 
 
 enum{
@@ -55,8 +62,7 @@ void setup() {
   while(!Serial){
     delay(100);
   }
-
-  Serial.println(READ_RTC_CNTL_TIME_UPDATE_REG()); //Luetaan rtc kellon tila
+  Serial.println("Tama on osoitteen arvo: "+ (String)* pointer); //Luetaan rtc kellon tila
 
 
   Wire.begin();
