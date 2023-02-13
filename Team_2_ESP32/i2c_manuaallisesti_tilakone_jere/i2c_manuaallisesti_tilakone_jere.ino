@@ -260,7 +260,7 @@ void handleState(){
         neopixelWrite(RGB_BUILTIN,255,0,0); //Punainen
         WiFi.setSleep(true);
 
-        void sleepi_aika(){
+        void sleepi_aika() { //Demo sleep tilasta
         esp_sleep_enable_timer_wakeup(5 * 1000000ULL); //Ajastin 5 sekunttia herätys      
         esp_deep_sleep_start(); //Syvä sleep tila aktivointi
         esp_light_sleep_start(); //Kevyt sleep tila aktivointi
