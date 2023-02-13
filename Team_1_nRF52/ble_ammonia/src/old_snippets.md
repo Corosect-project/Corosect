@@ -1,4 +1,4 @@
-# read_an3_data
+# read_nh3_data
 
 ```c
  uint32_t res = 0;
@@ -55,5 +55,10 @@ while (!quit) {
   clear_cs();
   k_sleep(K_MSEC(2000));
   set_cs();
+    if (err == NRFX_SUCCESS) {
+      int32_t result = (int32_t)rx_buff[2] | ((int32_t)rx_buff[1] << 8) | ((0x1f & (int32_t)rx_buff[0]) << 16);
+      result |= (((int32_t)rx_buff[0] & 0x20) << 2) << 24;
+      printk("DATA: 0x%x 0x%x 0x%x\nDEC: %d\n", rx_buff[0], rx_buff[1], rx_buff[2], result);
+    }
 }
 ```

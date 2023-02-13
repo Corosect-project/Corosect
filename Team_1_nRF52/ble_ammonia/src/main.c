@@ -49,9 +49,8 @@ static inline void clear_cs() {
   k_sleep(K_NSEC(100));
 }
 
-int read_ah3_data(nrfx_spim_t *instance, nrfx_spim_xfer_desc_t *transf) {
+int read_nh3_data(nrfx_spim_t *instance, nrfx_spim_xfer_desc_t *transf) {
   uint32_t ready = 1;
-
   do {
     clear_cs();
     ready = nrf_gpio_pin_read(SDO_PIN);
@@ -65,6 +64,30 @@ int read_ah3_data(nrfx_spim_t *instance, nrfx_spim_xfer_desc_t *transf) {
   int err = nrfx_spim_xfer(instance, transf, 0);
   set_cs();
   return err;
+}
+
+struct nh3_spi_data {
+  bool OL;
+  bool OH;
+  uint32_t value;
+};
+
+void print_spi_data(uint8_t *spi_data, size_t size) {
+  printk("DATA:");
+  for (size_t i = 0; i < size; i++)
+    printk(" %x", spi_data[i]);
+  printk("\n");
+}
+
+void format_nh3_data(uint8_t *spi_data, struct nh3_spi_data *_out_data) {
+  _out_data->OL = spi_data[0] >> 7;
+  _out_data->OH = (spi_data[0] >> 6) & 0x01;
+  _out_data->value = spi_data[2] | spi_data[1] << 8 | (spi_data[0] & 0x1f) << 16;
+  _out_data->value |= ((spi_data[0] & 0x20) << 2) << 24;
+}
+
+void print_nh3_struct(struct nh3_spi_data *data) {
+  printk("OL: %d OH: %d VALUE: %d", data->OL, data->OH, data->value);
 }
 
 void main(void) {
@@ -86,15 +109,16 @@ void main(void) {
     printk("Could't enable spi\n");
 
   uint8_t rx_buff[3];
+  struct nh3_spi_data data;
   nrfx_spim_xfer_desc_t transf = NRFX_SPIM_XFER_RX(rx_buff, 3);
 
   while (!quit) {
-    int err = read_an3_data(&instance, &transf);
+    int err = read_nh3_data(&instance, &transf);
     printk("ERROR_CODE: %d\n", err);
     if (err == NRFX_SUCCESS) {
-      int32_t result = (int32_t)rx_buff[2] | ((int32_t)rx_buff[1] << 8) | ((0x1f & (int32_t)rx_buff[0]) << 16);
-      result |= (((int32_t)rx_buff[0] & 0x20) << 2) << 24;
-      printk("DATA: 0x%x 0x%x 0x%x\nDEC: %d\n", rx_buff[0], rx_buff[1], rx_buff[2], result);
+      print_spi_data(rx_buff, sizeof(rx_buff));
+      format_nh3_data(rx_buff, &data);
+      print_nh3_struct(&data);
     }
 
     k_sleep(K_MSEC(2000));
