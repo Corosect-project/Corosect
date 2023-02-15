@@ -39,8 +39,7 @@ printk("%d %d %d\n", flags.OL, flags.OH, flags.SIGN);
 ```c
 if (ERROR(dk_leds_init()))
   printk("Error initializing leds");
-if (ERROR(dk_buttons_init(button_handler)))
-  printk("Error initializing buttons");
+
 
 
 nrf_gpio_cfg_input(SDO_PIN, NRF_GPIO_PIN_PULLUP);
