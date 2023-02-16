@@ -20,7 +20,9 @@ LOG_MODULE_REGISTER(main_log, LOG_LEVEL_DBG);
 
 #define ERROR(err) (err < 0)
 #define ZEPHYR_ADDR "192.168.1.5"
+#define ZEPHYR_ADDR "192.168.1.5"
 #define SERVER_ADDR "3.120.89.246"
+#define SERVER_ADDR_IPv6 "2001:db8::2"
 #define SERVER_PORT 8000
 
 volatile bool quit = false;
@@ -33,7 +35,7 @@ static struct sockaddr_storage broker;
 
 static const struct bt_data ad[] = {
     BT_DATA_BYTES(BT_DATA_FLAGS, (BT_LE_AD_GENERAL | BT_LE_AD_NO_BREDR)),
-    BT_DATA_BYTES(BT_DATA_UUID16_ALL, BT_UUID_16_ENCODE(0x0023)),
+    BT_DATA_BYTES(BT_DATA_UUID16_ALL, BT_UUID_16_ENCODE(0x1820)),
 };
 
 void button_handler(uint32_t state, uint32_t has_changed);
@@ -62,20 +64,21 @@ void print_nh3_struct(struct nh3_spi_data *data);
 void mqtt_evt_handler(struct mqtt_client *client, const struct mqtt_evt *evt);
 
 void main(void) {
-  printk("Hello World! %s\n", CONFIG_BOARD);
+  LOG_INF("Hello World! %s", CONFIG_BOARD);
 
   if (ERROR(dk_buttons_init(button_handler)))
     printk("Error initializing buttons");
 
   int err = bt_enable(NULL);
-  if (ERROR(err)) printk("Error enabling BT %d", err);
+  if (ERROR(err)) LOG_ERR("Error enabling BT %d", err);
   bt_ready();
 
-  struct sockaddr_in *broker4 = (struct sockaddr_in *)&broker;
-  broker4->sin_family = AF_INET;
-  broker4->sin_port = htons(SERVER_PORT);
-  // net_addr_pton(AF_INET, SERVER_ADDR, &broker4->sin_addr);
-  zsock_inet_pton(AF_INET, SERVER_ADDR, &broker4->sin_addr);
+  struct sockaddr_in6 *broker6 = (struct sockaddr_in6 *)&broker;
+  broker6->sin6_family = AF_INET6;
+  broker6->sin6_port = htons(SERVER_PORT);
+  err = net_addr_pton(AF_INET6, SERVER_ADDR_IPv6, &broker6->sin6_addr);
+  LOG_DBG("TEST: %d", err);
+  // zsock_inet_pton(AF_INET6, SERVER_ADDR_IPv6, &broker6->sin6_addr);
 
   uint8_t *client_id = "ZEPHYR_mqtt_client";
   mqtt_client_init(&client_ctx);
@@ -85,7 +88,6 @@ void main(void) {
   client_ctx.client_id.size = sizeof(client_id) - 1;
   client_ctx.password = NULL;
   client_ctx.user_name = NULL;
-  client_ctx.protocol_version = MQTT_VERSION_3_1_1;
   client_ctx.transport.type = MQTT_TRANSPORT_NON_SECURE;
 
   client_ctx.rx_buf = rx_buffer;
@@ -95,7 +97,8 @@ void main(void) {
 
   int rc = mqtt_connect(&client_ctx);
   if (rc != 0) {
-    LOG_ERR("ERROR: %d\n", rc);
+    LOG_ERR("ERROR: %d", rc);
+    while(!quit) k_sleep(K_MSEC(1000));
     return;
   }
   struct zsock_pollfd fds[1];
@@ -227,14 +230,14 @@ void mqtt_evt_handler(struct mqtt_client *client, const struct mqtt_evt *evt) {
   switch (evt->type) {
     case MQTT_EVT_CONNACK:
       if (evt->result != 0) {
-        LOG_ERR("Error connecting: %d\n", evt->result);
+        LOG_ERR("Error connecting: %d", evt->result);
         break;
       }
-      LOG_INF("MQTT connected\n");
+      LOG_INF("MQTT connected");
       connected = true;
       break;
     case MQTT_EVT_DISCONNECT:
-      LOG_INF("MQTT disconnected\n");
+      LOG_INF("MQTT disconnected");
       connected = false;
       break;
     case MQTT_EVT_PINGRESP:
