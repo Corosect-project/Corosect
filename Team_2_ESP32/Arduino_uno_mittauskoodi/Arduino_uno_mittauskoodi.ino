@@ -3,20 +3,16 @@ Ohjelma laskee arduino unolle suunnitellussa ohjelmassa virran ja jännitteen en
 Program counts arduino uno pinout program current and voltages over resistor.
 */
 
-double jannite = 0.0, virta = 0.0, teho = 0.0, vastuksenarvo = 2.2; //Alku arvo jännitteelle ja virta oletus ja luodaan resistanssi ja teho
-int janniteportti = A1, virtaportti = A0;
+double voltage = 0.0, current = 0.0, power = 0.0, resistorvalue = 2.2; //Alkuarvo jännitteelle, virta oletus, luodaan resistanssi ja teho. Starting value for voltage, current, resistor and power 
+int voltageport = A0; //Jännitteenlukuportti
 
 void setup() {
-  Serial.begin(9600);
+  Serial.begin(9600); //Avataan sarjaportti Opening serialport
 }
 
 void loop() {
-  jannite = (analogRead(virtaportti) * 5.0) / 1024.0; //U
-  virta = ((analogRead(janniteportti) * 5.0) / 1024.0) / (vastuksenarvo); //I=U/R
-  teho = jannite*virta; //P=UI
-  Serial.print(virta); //Virta
-  Serial.print(" ");
-  Serial.print(jannite); //Jännite
-  Serial.print(" ");
-  Serial.println(teho);  
-  delay(1000);
+  voltage = (analogRead(voltageport) * 5.0) / 1024.0; //U
+  current = voltage / resistorvalue; //I=U/R
+  power = voltage * current; //P=U*I
+  Serial.println(voltage+" "+current+" "+power); //Jännite, virta ja teho tulostus. Voltage, current and power print.
+  delay(1000); //Viive delay
