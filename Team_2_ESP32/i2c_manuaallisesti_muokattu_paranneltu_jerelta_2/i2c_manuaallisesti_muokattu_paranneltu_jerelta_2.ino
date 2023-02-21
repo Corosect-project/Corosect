@@ -9,7 +9,7 @@
 #include <WiFi.h>
 #include <PubSubClient.h>
 
-//bool setCpuFrequencyMhz(uint32_t 20); //Prosessorin kellon säätö
+bool setCpuFrequencyMhz(uint32_t 240); //Prosessorin kellon säätö
 
 #define co2_addr 0x29 //i2c osoite co2 anturille, oletuksena 0x29 (41)
 #define WL_MAX_ATTEMPTS 3 //Maksimimäärä sallittuja yrityksiä wlanin yhdistämiselle
@@ -280,6 +280,14 @@ void readResults(){
   }
   PROGRAM_STATE = ALL_DONE;
 }
+
+void hibernation(){ //Hibernation tila
+  esp_sleep_pd_config(ESP_PD_DOMAIN_RTC_PERIPH,   ESP_PD_OPTION_OFF);
+  esp_sleep_pd_config(ESP_PD_DOMAIN_RTC_SLOW_MEM, ESP_PD_OPTION_OFF);
+  esp_sleep_pd_config(ESP_PD_DOMAIN_RTC_FAST_MEM, ESP_PD_OPTION_OFF); 
+  esp_sleep_pd_config(ESP_PD_DOMAIN_XTAL,         ESP_PD_OPTION_OFF);
+}
+
 
 void loop() {
   delay(1000);
