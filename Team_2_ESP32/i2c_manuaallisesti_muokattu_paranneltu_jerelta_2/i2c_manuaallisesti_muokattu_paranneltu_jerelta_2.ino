@@ -10,16 +10,14 @@
 #include <PubSubClient.h>
 
 #define co2_addr 0x29 //i2c osoite co2 anturille, oletuksena 0x29 (41)
-#define WL_MAX_ATTEMPTS 5 //Maksimimäärä sallittuja yrityksiä wlanin yhdistämiselle
-#define MQTT_MAX_ATTEMPTS 5 //Maksimimäärä sallittuja yrityksiä wlanin yhdistämiselle
-#define WL_CONNECT_TRY_TIME 1000 //Aika joka yritetään yhdistää wlaninn (ms)
+#define WL_MAX_ATTEMPTS 3 //Maksimimäärä sallittuja yrityksiä wlanin yhdistämiselle
+#define MQTT_MAX_ATTEMPTS 3 //Maksimimäärä sallittuja yrityksiä mqtt yhdistämiselle
+#define WL_CONNECT_TRY_TIME 1500 //Odotusaika per yritys (ms)
 #define MQTT_CONNECT_TRY_TIME 1000 //sama mqtt
+#define SAMPLES 10 //montako kertaa mitataan
 
-//Reaaliaika Kellon poistaminen alkaa 
-#define RTC_CNTL_TIMER_XTL_OFF 0x60008000   //Pointteri osoittamaan rekisteriin RTC_CNTL_TIME_UPDATE_REG 
-//Low-Power Management low address 0x6000_8000 + 0x000C
-volatile uint32_t* pointer = (volatile uint32_t*)(RTC_CNTL_TIMER_XTL_OFF+0x000C);
-//Reaaliaika Kellon poistaminen loppuu 
+const int I2C_SDA_PIN = 6;
+const int I2C_SCL_PIN = 7;
 
 
 
@@ -37,13 +35,23 @@ enum{
     ALL_DONE
 }PROGRAM_STATE;
 
+enum LED_COLOR{
+  WHITE,
+  RED,
+  GREEN,
+  BLUE,
+  YELLOW,
+  PURPLE,
+  ORANGE,
+  BLACK
+};
 
 //Wifi
-char ssid[]="panoulu";
+char ssid[]="のヮの";
 char pass[]="";
 
 //MQTT
-char broker[]="100.64.254.11";
+char broker[]="10.0.0.84";
 int port = 1883;
 char devname[] = "esp32";
 
@@ -60,6 +68,7 @@ void setup() {
   }
 
   PROGRAM_STATE = PROGRAM_START;
+  Wire.setPins(I2C_SDA_PIN, I2C_SCL_PIN);
   Wire.begin();
 
   client.setServer(broker,port); //MQTT asetukset
@@ -95,11 +104,38 @@ void setup() {
     Serial.println("Wifi löytyi");
   }else{
     Serial.println("Ei löytynyt");
-    goToSleep(1000);
   }
+}
 
-//  checkStateAndConnect();
-  //connectMQTT();
+void setLED(LED_COLOR color){
+  switch(color){
+    case RED:
+      neopixelWrite(RGB_BUILTIN,255,0,0);
+      break;
+    case BLUE:
+      neopixelWrite(RGB_BUILTIN,0,0,255);
+      break;
+    case GREEN:
+      neopixelWrite(RGB_BUILTIN,0,255,0);
+      break;
+    case WHITE:
+      neopixelWrite(RGB_BUILTIN,255,255,255);
+      break;
+    case BLACK:
+      neopixelWrite(RGB_BUILTIN,0,0,0);
+      break;
+    case PURPLE:
+      neopixelWrite(RGB_BUILTIN,255,0,255);
+      break;
+    case YELLOW:
+      neopixelWrite(RGB_BUILTIN,255,255,0);
+      break;
+    case ORANGE:
+      neopixelWrite(RGB_BUILTIN,255,162,0);
+      break;
+    default:
+    break;
+  }  
 }
 
 void checkWifiAvailable(){
@@ -115,27 +151,31 @@ void checkWifiAvailable(){
 
 void connectWifi(){
     PROGRAM_STATE = WLAN_NOT_CONNECTED;
+    WiFi.disconnect(false);
     WiFi.mode(WIFI_STA);
     WiFi.begin(ssid,pass);
+    Serial.print("Aloitetaan yhteys");
 
-    int startt = millis();
-    int endt = startt;
-
-    while((endt - startt) <= WL_CONNECT_TRY_TIME){ //yritetään yhteyttä 1 sekunnin ajan
-      if(WiFi.status() == WL_CONNECTED){
-        PROGRAM_STATE = WLAN_CONNECT_SUCCESS;
+    int attempts = 0;
+    while(WiFi.status() != WL_CONNECTED){
+      if(attempts >= WL_MAX_ATTEMPTS){
+        PROGRAM_STATE = WLAN_CONNECT_ERROR;
         break;
-      }else{}
-      delay(10);
-      endt = millis();
+      }
+        
+      Serial.print(".");
+      
+      delay(WL_CONNECT_TRY_TIME);
+      ++attempts;
     }
 
-    if(PROGRAM_STATE == WLAN_CONNECT_SUCCESS){
+    if(WiFi.status() == WL_CONNECTED){
+      PROGRAM_STATE = WLAN_CONNECT_SUCCESS;
       Serial.println("Yhdistettiin!");
     }else{
       PROGRAM_STATE = WLAN_CONNECT_ERROR;
-      Serial.println("Ei yhdistetty");
-      goToSleep(1000);
+      Serial.print("Ei yhdistetty ");
+      Serial.println(WiFi.status());
     }
   
   
@@ -143,23 +183,22 @@ void connectWifi(){
 
 void connectMQTT(){
   client.connect(devname);
-  int startt = millis();
-  int endt = startt;
-  Serial.println(startt);
-  Serial.println(endt);
+  int attempts=0;
 
+  Serial.println("aloitetaan mqtt");
+  while(!client.connected()){
+    if(attempts >= MQTT_MAX_ATTEMPTS){
+      PROGRAM_STATE = MQTT_CONNECT_ERROR;
+      break;
+    }
+    Serial.print(".");
 
-    while((endt - startt) <= MQTT_CONNECT_TRY_TIME){ //yritetään yhteyttä 1 sekunnin ajan
-      if(client.connected()){
-        PROGRAM_STATE = MQTT_CONNECT_SUCCESS;
-        break;
-     }
-      endt = millis();
-
-    delay(10);
+    delay(1000);
+    ++attempts;
   }
 
-  if(PROGRAM_STATE == MQTT_CONNECT_SUCCESS){
+  if(client.connected()){
+    PROGRAM_STATE = MQTT_CONNECT_SUCCESS;
     Serial.println("MQTT yhteys onnistui!");
   }else{
     PROGRAM_STATE = MQTT_CONNECT_ERROR;
@@ -171,9 +210,12 @@ void connectMQTT(){
 
 void goToSleep(int ms){
   PROGRAM_STATE = PROGRAM_START;
-  disableWifi();
+  disableWifi(); //varmaan turha jos nukkumistila kuitenkin sammuttaa wifin mutta onpa kuitenkin
+
+  esp_sleep_enable_timer_wakeup(ms*1000); //ajastin käyttää aikaa mikrosekunneissa
+  esp_deep_sleep_start();
+    
   Serial.println("Krooh pyyh");
-  delay(ms);
 }
 
 void disableWifi(){
@@ -181,7 +223,6 @@ void disableWifi(){
   WiFi.disconnect(true); 
   WiFi.mode(WIFI_OFF);
   PROGRAM_STATE = PROGRAM_START;
-
 }
 
 
@@ -210,7 +251,8 @@ void readCo2Sensor(){
   //Tarkistusta varten
   Serial.print("Co2: ");
   Serial.print(co2_result);
-  Serial.print("\tTemp: ");
+  Serial.print("\t");
+  Serial.print("Temp: ");
   Serial.println(temp_result);
 
   //Lähetetään nyt tiedot vaan suoraan brokerille
@@ -218,13 +260,6 @@ void readCo2Sensor(){
   sendResult(temp_result, temp_topic);
 }
 
-void hibernation(){
-
-  esp_sleep_pd_config(ESP_PD_DOMAIN_RTC_PERIPH,   ESP_PD_OPTION_OFF);
-  esp_sleep_pd_config(ESP_PD_DOMAIN_RTC_SLOW_MEM, ESP_PD_OPTION_OFF);
-  esp_sleep_pd_config(ESP_PD_DOMAIN_RTC_FAST_MEM, ESP_PD_OPTION_OFF); 
-  esp_sleep_pd_config(ESP_PD_DOMAIN_XTAL,         ESP_PD_OPTION_OFF);
-}
 void sendResult(uint16_t val, char* topic){ 
   int len = snprintf(NULL,0,"%d",val); //Hankitaan mitatun datan pituus
   char* sResult = (char*)malloc((len+1)*sizeof(char)); //Varataan muistia mjonolle jonka pituus on mittaustulos + NULL
@@ -237,53 +272,53 @@ void sendResult(uint16_t val, char* topic){
 
 void readResults(){
   PROGRAM_STATE = MEASURING_DATA;
-  for(int i = 0; i<10;++i){
+  for(int i = 0; i<SAMPLES;++i){
     readCo2Sensor();
     delay(100);
   }
   PROGRAM_STATE = ALL_DONE;
 }
 
-void handleState(){
+void loop() {
+  delay(1000);
+
   switch(PROGRAM_STATE){
-    case PROGRAM_START:
-        neopixelWrite(RGB_BUILTIN,255,255,255);
+    case PROGRAM_START: //Ollaan juuri käynnistetty tai palattu unesta, etsitään ensin wifi
         checkWifiAvailable();
         break;
-    case WLAN_FOUND:
-        neopixelWrite(RGB_BUILTIN,255,255,0);
+    case WLAN_FOUND: //Wifi löytyi -> yritetään yhdistystä
+        setLED(YELLOW);
         connectWifi();
         break;
-    case WLAN_CONNECT_SUCCESS:
-        neopixelWrite(RGB_BUILTIN,0,0,255);
+    case WLAN_NOT_FOUND: //Wifiä ei löytynyt -> nukkumaan
+        Serial.println("Nukutaan vielä pitemmin");
+        setLED(RED);
+        goToSleep(7500);
+        break;
+    case WLAN_CONNECT_SUCCESS: //Wifi yhteys onnistui -> yritetään mqtt yhteyttä
+        setLED(GREEN);
         connectMQTT();
         break;
-    case MQTT_CONNECT_SUCCESS:
-        neopixelWrite(RGB_BUILTIN,0,255,0); 
+    case WLAN_CONNECT_ERROR: //Wifi yhteys epäonnistui -> nukkumaan
+        Serial.println("Wifi yhteys epäonnistui");
+        setLED(RED);
+        goToSleep(5000);
+        break;
+    case MQTT_CONNECT_SUCCESS://mqtt yhteys onnistui -> luetaan mitaustulokset
+        setLED(BLUE);
         readResults();
         break;
-    case ALL_DONE:
-        Serial.println("Mitattu, nukkumaan");
-        neopixelWrite(RGB_BUILTIN,255,0,0); //Punainen
-        WiFi.setSleep(true);
-
-        void sleepi_aika() { //Demo sleep tilasta
-        esp_sleep_enable_timer_wakeup(5 * 1000000ULL); //Ajastin 5 sekunttia herätys      
-        esp_deep_sleep_start(); //Syvä sleep tila aktivointi
-        esp_light_sleep_start(); //Kevyt sleep tila aktivointi
-        }
+    case MQTT_CONNECT_ERROR: //mqtt yhteys epäonnistui -> nukkumaan
+        setLED(RED);
         goToSleep(5000);
-        WiFi.setSleep(false);
-        
+        break;
+    case ALL_DONE: //mittaustulokset luettu ja lähetetty -> voidaan mennä lepotilaan uudestaan
+        Serial.println("Mitattu, nukkumaan");
+        setLED(BLACK);
+        goToSleep(5000);
     default:
         //lole
         break;
   }  
-}
-
-void loop() {
-  delay(1000);
-
-  handleState();
 
 }
