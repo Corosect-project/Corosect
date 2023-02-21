@@ -1,12 +1,13 @@
-#include "Wire.h"
+#include <Wire.h>
 #include <WiFi.h>
 #include <PubSubClient.h>
-#include "SparkFun_STC3x_Arduino_Library.h"
+#include <SparkFun_STC3x_Arduino_Library.h>
 #include <RunningMedian.h>
 //Virrankulutuksen optimointia varten:
-#include "driver/adc.h"
+//#include "driver/adc.h"
 
 
+//#define RGB_BUILTIN_ON 
 //HAVAINNOLLISTAMISTA VARTEN...
 int keskiledPIN=13;
 
@@ -67,21 +68,27 @@ int wlanLED=13;
 
 void setup(){
 
-  pinMode(keskiledPIN,OUTPUT);
+  //pinMode(keskiledPIN,OUTPUT);
 
-  Serial.begin(115200); 
+  Serial.begin(115200);
   Serial.println("Aloitetaan...");
   while(!Serial){} // Odotellaan sarjaliikennettä...
 
   //CO2-anturiasioita:
   Wire.begin();
   delay(50);
-  if (co2_sensori.begin() == false)
-  {Serial.println("Sensoria ei löytynyt, mutta jatketaan silti...");}
-  else{Serial.println("Sensorihan se täältä löytyi!!! Tadaa!!!");}
-  if (co2_sensori.setBinaryGas(STC3X_BINARY_GAS_CO2_AIR_100) == false) // Asetetaan sensorin antamaksi dataksi 0-100% CO2 ilmassa
-  {Serial.println("Binäärikaasuasetukset eivät onnistuneet, mutta jatketaan silti...");}
-  else{Serial.println("Binäärikaasuasetukset onnistuivat!");}
+  if(co2_sensori.begin() == false)
+  {
+    Serial.println("Sensoria ei löytynyt, mutta jatketaan silti...");
+  }else{
+    Serial.println("Sensorihan se täältä löytyi!!! Tadaa!!!");
+  }
+  if(co2_sensori.setBinaryGas(STC3X_BINARY_GAS_CO2_AIR_100) == false) // Asetetaan sensorin antamaksi dataksi 0-100% CO2 ilmassa
+  {
+    Serial.println("Binäärikaasuasetukset eivät onnistuneet, mutta jatketaan silti...");
+  }else{
+    Serial.println("Binäärikaasuasetukset onnistuivat!");
+  }
   
   //WIFI-asiat
   enableWiFi();
@@ -89,8 +96,7 @@ void setup(){
 }
 
 float mittaa_temp(){
-  Serial.println("");
-  Serial.print("Temp:n mittaus alkaa...");
+  Serial.print("\nTemp:n mittaus alkaa...");
   for (int i=0;i<=mittauksen_naytemaara;i++){
     float temp_raw = random(20,30);
     temp_naytejono.add(temp_raw);
@@ -102,8 +108,7 @@ float mittaa_temp(){
 }
 
 float mittaa_humidity(){
-  Serial.println("");
-  Serial.print("Humidity:n mittaus alkaa...");
+  Serial.print("\nHumidity:n mittaus alkaa...");
   for (int i=0;i<=mittauksen_naytemaara;i++){
     float humidity_raw = random(50,100);
     humidity_naytejono.add(humidity_raw);
@@ -115,8 +120,7 @@ float mittaa_humidity(){
 }
 
 float mittaa_co2(){
-  Serial.println("");
-  Serial.print("CO2:n mittaus alkaa...");
+  Serial.print("\nCO2:n mittaus alkaa...");
   for (int i=0;i<=mittauksen_naytemaara;i++){
     float co2_raw = random(100,1000);
     co2_naytejono.add(co2_raw);
@@ -128,8 +132,7 @@ float mittaa_co2(){
 }
 
 float mittaa_moisture(){
-  Serial.println("");
-  Serial.print("Moisture:n mittaus alkaa...");
+  Serial.print("\nMoisture:n mittaus alkaa...");
   for (int i=0;i<=mittauksen_naytemaara;i++){
     float moisture_raw = random(0,100);
     //Serial.println(co2_raw);
@@ -142,8 +145,7 @@ float mittaa_moisture(){
 }
 
 float mittaa_nh3(){
-  Serial.println("");
-  Serial.print("NH3:n mittaus alkaa...");
+  Serial.print("\nNH3:n mittaus alkaa...");
   for (int i=0;i<=mittauksen_naytemaara;i++){
     float nh3_raw = random(0,1000);
     nh3_naytejono.add(nh3_raw);
@@ -203,9 +205,7 @@ int tarkista_yhteys_ja_nosta_ylos_jos_tarvetta(char ssid[],char pass[],char brok
       }
   
       if (wifi_ja_mqtt_kunto==0){    
-        Serial.print("WLAN-yhteydessa on probleemia...vaikka yritettiin uudestaan: ");
-        Serial.print("montako?");
-        Serial.println(" kertaa!");
+        Serial.println("WLAN-yhteydessa on probleemia...vaikka yritettiin uudestaan: montako? kertaa!");
       }
       
   }
@@ -243,32 +243,32 @@ int tarkista_yhteys_ja_nosta_ylos_jos_tarvetta(char ssid[],char pass[],char brok
 
 //Näistä toiminnoista voi olla erityistä hyötyä WLANin virrankulutuksen optimoinnissa...
 void disableWiFi(){
-    adc_power_off();
+    //adc_power_off();
     WiFi.disconnect(true);  // Disconnect from the network
     WiFi.mode(WIFI_OFF);    // Switch WiFi off
     //Ilmaistaan keskiledin sammutuksella se, että WLAN on pois päältä...
-    digitalWrite(keskiledPIN, LOW);
+    //digitalWrite(keskiledPIN, LOW);
 }
 
 void enableWiFi(){
     //Ilmaistaan keskiledillä se, että WLAN on päällä...
-    digitalWrite(keskiledPIN, HIGH);
-    adc_power_on();
+    //digitalWrite(keskiledPIN, HIGH);
+    //adc_power_on();
     WiFi.disconnect(false);  // Reconnect the network
     WiFi.mode(WIFI_STA);    // Switch WiFi off
  
-    Serial2.println("KAYNNISTETAAN WLAN...");
+    Serial.println("KAYNNISTETAAN WLAN...");
     WiFi.begin(ssid, pass);
  
     while (WiFi.status() != WL_CONNECTED) {
         delay(500);
-        Serial2.print(".");
+        Serial.print(".");
     }
  
-    Serial2.println("");
-    Serial2.println("WLAN OK!");
-    Serial2.println("IP address: ");
-    Serial2.println(WiFi.localIP());
+    Serial.println("");
+    Serial.println("WLAN OK!");
+    Serial.println("IP address: ");
+    Serial.println(WiFi.localIP());
 
     //MQTT-asiat
     client.setServer(broker,port);
@@ -284,8 +284,7 @@ void loop() {
   //
   //Lisäksi; tietojen lähettämisen huolellinen harkinta voi auttaa myös virrankulutuksen optimoinnissa
   //
-  Serial.println("|");
-  Serial.println("");
+  Serial.println("|\n");
   Serial.println("#######################################################");
   Serial.println("#          M I T T A U K S E T                        #");
   Serial.println("#######################################################");
