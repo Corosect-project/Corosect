@@ -1,6 +1,8 @@
 /* 
 Ohjelma laskee arduino unolle suunnitellussa ohjelmassa virran ja jännitteen ennalta määrritellyn vastuksen yli.
+Vastuksen arvo on 2,2 Ohm.
 Program counts arduino uno pinout program current and voltages over resistor.
+Resistor value is 2.2 Ohm.
 */
 
 double voltage = 0.0, current = 0.0, power = 0.0, resistorvalue = 2.2; //Alkuarvo jännitteelle, virta oletus, luodaan resistanssi ja teho. Starting value for voltage, current, resistor and power 
@@ -16,4 +18,3 @@ void loop() {
   power = voltage * current; //P=U*I
   Serial.println(String(voltage) + " " + String(current) + " " + String(power)); //Jännite, virta ja teho tulostus. Voltage, current and power print.
   delay(1000); //Viive delay
-}

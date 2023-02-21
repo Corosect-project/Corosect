@@ -9,6 +9,8 @@
 #include <WiFi.h>
 #include <PubSubClient.h>
 
+//bool setCpuFrequencyMhz(uint32_t 20); //Prosessorin kellon säätö
+
 #define co2_addr 0x29 //i2c osoite co2 anturille, oletuksena 0x29 (41)
 #define WL_MAX_ATTEMPTS 3 //Maksimimäärä sallittuja yrityksiä wlanin yhdistämiselle
 #define MQTT_MAX_ATTEMPTS 3 //Maksimimäärä sallittuja yrityksiä mqtt yhdistämiselle
