@@ -11,7 +11,7 @@ void setup() {
 }
 
 void loop() {
-  voltage = (analogRead(voltageport) * 5.0) / 1024.0; //U
+  voltage = (analogRead(voltageport) * 5.0) / 1024.0; //U=(Uin*5V)/1024 5 Volttia on maksimimäärä. 1024 on 10 bittiä. 5 volts is max voltage. 1024 is 10 bits.
   current = voltage / resistorvalue; //I=U/R
   power = voltage * current; //P=U*I
   Serial.println(String(voltage) + " " + String(current) + " " + String(power)); //Jännite, virta ja teho tulostus. Voltage, current and power print.
