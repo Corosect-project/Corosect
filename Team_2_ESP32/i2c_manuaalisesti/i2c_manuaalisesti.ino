@@ -16,6 +16,7 @@
 #define MQTT_CONNECT_TRY_TIME 1000 //sama mqtt
 #define SAMPLES 10 //montako kertaa mitataan
 
+/* Pinnit eivät voi olla oletuspinnit, koska pinniä 8 tarvitaan LEDin kanssa*/
 const int I2C_SDA_PIN = 6;
 const int I2C_SCL_PIN = 7;
 
@@ -47,11 +48,11 @@ enum LED_COLOR{
 };
 
 //Wifi
-char ssid[]="のヮの";
+char ssid[]="panoulu";
 char pass[]="";
 
 //MQTT
-char broker[]="10.0.0.84";
+char broker[]="100.64.254.11";
 int port = 1883;
 char devname[] = "esp32";
 
