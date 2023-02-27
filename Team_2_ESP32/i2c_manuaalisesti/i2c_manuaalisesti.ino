@@ -24,6 +24,7 @@ const int I2C_SCL_PIN = 7;
 
 enum{
     PROGRAM_START,
+    SENSOR_ERROR,
     WLAN_NOT_FOUND,
     WLAN_FOUND,
     WLAN_NOT_CONNECTED,
@@ -70,6 +71,7 @@ void setup() {
 
   PROGRAM_STATE = PROGRAM_START;
   Wire.setPins(I2C_SDA_PIN, I2C_SCL_PIN);
+  Wire.setClock(1000000);
   Wire.begin();
 
   client.setServer(broker,port); //MQTT asetukset
@@ -87,12 +89,20 @@ void setup() {
 
   delay(100); //Tarvittu viive (voi olla lopuksi pienempikin, 100 toimii nyt)
 
+  uint8_t bytes[2];
+  uint16_t result;
+  int i = 0;
   /* Luetaan vastaus (00 == Kaikki OK) */
   Wire.requestFrom(co2_addr,2);
   while(Wire.available()) {
-    Serial.print(Wire.read());
+    bytes[i] = Wire.read();
+    ++i;
   }
-  Serial.println();
+  result = ((uint16_t)bytes[0] << 8) | (uint16_t)bytes[1];
+  Serial.println(result);
+  if(result != 0x0000){
+    PROGRAM_STATE = SENSOR_ERROR;
+  }
 
   /* Asetetaan kaasu CO2 ilmassa 0-100% */
   Wire.beginTransmission(co2_addr);
@@ -100,12 +110,6 @@ void setup() {
   Wire.write(0x00);Wire.write(0x01); //arg 0x0001 CO2 in air 0 to 100
   Wire.endTransmission();
 
-  checkWifiAvailable();
-  if(PROGRAM_STATE == WLAN_FOUND){
-    Serial.println("Wifi löytyi");
-  }else{
-    Serial.println("Ei löytynyt");
-  }
 }
 
 void setLED(LED_COLOR color){
@@ -275,17 +279,21 @@ void readResults(){
   PROGRAM_STATE = MEASURING_DATA;
   for(int i = 0; i<SAMPLES;++i){
     readCo2Sensor();
-    delay(100);
+    delay(10);
   }
   PROGRAM_STATE = ALL_DONE;
 }
 
 void loop() {
-  delay(1000);
+  delay(200);
 
   switch(PROGRAM_STATE){
     case PROGRAM_START: //Ollaan juuri käynnistetty tai palattu unesta, etsitään ensin wifi
         checkWifiAvailable();
+        break;
+    case SENSOR_ERROR:
+        setLED(RED);
+        goToSleep(5000);
         break;
     case WLAN_FOUND: //Wifi löytyi -> yritetään yhdistystä
         setLED(YELLOW);
