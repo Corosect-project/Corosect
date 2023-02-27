@@ -280,6 +280,18 @@ void readResults(){
   PROGRAM_STATE = ALL_DONE;
 }
 
+void CO2_sleep(){ //CO2 nukuttaminen
+  Wire.beginTransmission(co2_addr);
+  Wire.write(0x36);Wire.write(0x77); //Sleep tilan käyttöön otto
+  Wire.endTransmission();
+}
+
+void CO2_wakeup(){ //CO2 Herättäminen
+    Wire.beginTransmission(co2_addr);
+    Wire.write(0x0); //Herätys komento
+    Wire.endTransmission();
+}
+
 void loop() {
   delay(1000);
 
