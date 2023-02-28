@@ -1,3 +1,8 @@
+/* 
+ * Copyright (c) 2023 OAMK Corosect-project.
+ * 
+ * I2C implementation on ESP-ID. Heavy work in progress.*/
+
 #include <stdio.h>
 #include <string.h>
 #include "esp_log.h"
@@ -10,7 +15,7 @@
 #define I2C_MASTER_SDA_IO 6
 #define I2C_MASTER_SCL_IO 7
 
-/* RTC maximum possible SCL frequency is 1MHz */
+/* RTC maximum SCL frequency is 1MHz */
 #define I2C_MASTER_FREQ_HZ 1000000
 
 /* Address for Click Co2 sensor */
@@ -42,7 +47,7 @@ static esp_err_t i2c_master_init(){
 
 /* Send command 0x3768 to STC31 sensor
  * disables CRC for data transmissions as it is not required for this project */
-static esp_err_t disableCRC(){
+static esp_err_t disable_crc(){
     esp_err_t ret;
     i2c_cmd_handle_t cmd = i2c_cmd_link_create();
     i2c_master_start(cmd);
@@ -58,7 +63,7 @@ static esp_err_t disableCRC(){
 
 /* Send command 0x365B to STC31 sensor
  * runs automatic self-test on sensor and saves result to *data_h and *data_l */
-static esp_err_t selftest(uint8_t *data_h, uint8_t *data_l){
+static esp_err_t self_test(uint8_t *data_h, uint8_t *data_l){
     i2c_cmd_handle_t cmd = i2c_cmd_link_create();
     i2c_master_start(cmd);
     i2c_master_write_byte(cmd, I2C_CO2_ADDR<<1 | 0x0, 0x1);
@@ -88,7 +93,7 @@ static esp_err_t selftest(uint8_t *data_h, uint8_t *data_l){
 
 /* Send command 0x3615 with arg 0x0001
  * set binary gas to CO2 in air 0 to vol% */
-static esp_err_t setBinaryGas(){
+static esp_err_t set_binary_gas(){
     esp_err_t ret;
     i2c_cmd_handle_t cmd = i2c_cmd_link_create();
     i2c_master_start(cmd);
@@ -109,11 +114,11 @@ static esp_err_t setBinaryGas(){
 
 }
 
-/* Send command 0x3639 to STC31 sensor 
+/* Send command 0x3639 
  * measure gas concentration and read result
  * gas concentration to *co2_data
  * temperature to *temp_data */
-static esp_err_t measureGas(uint16_t *co2_data, uint16_t *temp_data){
+static esp_err_t measure_gas(uint16_t *co2_data, uint16_t *temp_data){
     uint8_t co2_h,co2_l,temp_h,temp_l;
 
     i2c_cmd_handle_t cmd = i2c_cmd_link_create();
@@ -149,36 +154,92 @@ static esp_err_t measureGas(uint16_t *co2_data, uint16_t *temp_data){
 
 }
 
-void initializeI2C(){
+/*TODO: clean this up, combine sleep and wakeup functions potentially */
+
+/* Send sleep command 0x3677 to sensor
+ * otherwise wake device up from sleep by sending addr + write bit */
+static esp_err_t sensor_sleep(){
+    i2c_cmd_handle_t cmd = i2c_cmd_link_create();
+    i2c_master_start(cmd);
+    i2c_master_write_byte(cmd, I2C_CO2_ADDR<<1 | 0x0, 0x1);
+        i2c_master_write_byte(cmd, 0x36, 0x1);
+        i2c_master_write_byte(cmd, 0x77, 0x1);
+
+    i2c_master_stop(cmd);
+    esp_err_t ret = i2c_master_cmd_begin(0, cmd, 1000 / portTICK_PERIOD_MS);
+    i2c_cmd_link_delete(cmd);
+
+    /* 12ms wakeup for sensor */
+    vTaskDelay(12 / portTICK_PERIOD_MS);
+    return ret;
+
+
+}
+
+/* Run wakeup sequence*/
+static esp_err_t sensor_wake(){
+    int test; 
+    puts("\nSensor wakeup");
+    
+    i2c_cmd_handle_t cmd = i2c_cmd_link_create();
+    i2c_master_start(cmd);
+    i2c_master_write_byte(cmd, I2C_CO2_ADDR<<1 | 0x0, 0);
+    i2c_master_stop(cmd);
+    esp_err_t ret = i2c_master_cmd_begin(0, cmd, 1000 / portTICK_PERIOD_MS);
+    i2c_cmd_link_delete(cmd);
+
+    /* 50ms wakeup for sensor seems safe */
+    vTaskDelay(50 / portTICK_PERIOD_MS);
+
+
+    /* Sensor enters default mode upon wakeup, disable crc and set binary gas */
+    test = disable_crc();
+    printf("disable crc %s\n",esp_err_to_name(test));
+
+    test = set_binary_gas();
+    printf("set binary gas %s\n\n",esp_err_to_name(test));
+
+    return ret;
+
+}
+
+void initialize_i2c(){
     uint8_t data_h=1, data_l=1;
 
     int test = i2c_master_init();
+    puts("i2c init");
     printf("driver install %s\n",esp_err_to_name(test));
-
-    test = disableCRC();
-    printf("disablecrc %s\n",esp_err_to_name(test));
-
-    test = selftest(&data_h, &data_l);
+    
+    test = self_test(&data_h, &data_l);
     printf("selftest %s\n",esp_err_to_name(test));
     printf("selftest result: %d%d\n",data_h, data_l);
 
-    test = setBinaryGas();
-    printf("set binary gas %s\n",esp_err_to_name(test));
+    sensor_wake();
 }
 
 
 void app_main(void){
     uint16_t co2,temp;
 
-    initializeI2C();
+    initialize_i2c();
 
-    for(;;){
-        measureGas(&co2,&temp);
-        printf("%hu \t %hu\n",co2,temp);
-        vTaskDelay(1000 / portTICK_PERIOD_MS);
+    while(1){
+        sensor_wake();
+
+        for(int i = 0; i < 10; i++){
+            measure_gas(&co2,&temp);
+            printf("%hu \t %hu\n",co2,temp);
+            vTaskDelay(500 / portTICK_PERIOD_MS);
+        }
+
+        vTaskDelay(500 / portTICK_PERIOD_MS);
+
+        puts("Sensor sleeping");
+        sensor_sleep();
+
+        vTaskDelay(5000 / portTICK_PERIOD_MS);
+
     }
-
-
 
 }
 
