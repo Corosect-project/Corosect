@@ -29,3 +29,4 @@ idf.py -p PORT flash monitor    # build, flash board and open serial monitor
 `Ctrl + ]` to exit the serial console.
 
 
+![hassun](hauska.jpg)
