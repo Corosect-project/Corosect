@@ -7,8 +7,11 @@
 #include <string.h>
 #include "esp_log.h"
 #include "driver/i2c.h"
+#include "driver/gpio.h"
 #include "sdkconfig.h"
+#include "esp_sleep.h"
 
+#define LED_GPIO 8
 
 /* Set SDA and SCL pins to 6 and 7
  * Default pins incompatible with changing LED color */
@@ -203,13 +206,27 @@ static esp_err_t sensor_wake(){
 
 }
 
+static void configure_led(){
+    gpio_config_t conf ={
+        .pin_bit_mask = 0x100, /* Bit mask for GPIO 8 */
+        .mode = GPIO_MODE_OUTPUT,
+        .pull_up_en = GPIO_PULLUP_ENABLE,
+        .pull_down_en = GPIO_PULLDOWN_DISABLE,
+        .intr_type = GPIO_INTR_DISABLE,
+    };
+
+    gpio_config(&conf);
+
+}
+
+
 void initialize_i2c(){
     uint8_t data_h=1, data_l=1;
 
     int test = i2c_master_init();
     puts("i2c init");
     printf("driver install %s\n",esp_err_to_name(test));
-    
+
     test = self_test(&data_h, &data_l);
     printf("selftest %s\n",esp_err_to_name(test));
     printf("selftest result: %d%d\n",data_h, data_l);
@@ -218,13 +235,22 @@ void initialize_i2c(){
 }
 
 
+void go_to_sleep(int ms){
+    esp_sleep_enable_timer_wakeup(ms*1000);
+    esp_deep_sleep_start();
+
+}
+
+
 void app_main(void){
     uint16_t co2,temp;
 
     initialize_i2c();
+    configure_led();
 
     while(1){
         sensor_wake();
+        gpio_set_level(LED_GPIO,true);
 
         for(int i = 0; i < 10; i++){
             measure_gas(&co2,&temp);
@@ -234,8 +260,10 @@ void app_main(void){
 
         vTaskDelay(500 / portTICK_PERIOD_MS);
 
-        puts("Sensor sleeping");
+        puts("Going to sleep");
+        gpio_set_level(LED_GPIO,false);
         sensor_sleep();
+        go_to_sleep(5000);
 
         vTaskDelay(5000 / portTICK_PERIOD_MS);
 
