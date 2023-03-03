@@ -14,16 +14,18 @@
 #include <zephyr/logging/log.h>
 #include <zephyr/net/mqtt.h>
 #include <zephyr/net/socket.h>
-
-#define DISABLE_NH3
 LOG_MODULE_REGISTER(main_log, LOG_LEVEL_DBG);
 
+#include "config.h"
+#define DISABLE_NH3
+#ifndef DISABLE_NH3
+#include "nh3_sensor.h"
+#endif
+
 #define ERROR(err) (err < 0)
-#define ZEPHYR_ADDR "192.168.1.5"
-#define ZEPHYR_ADDR "192.168.1.5"
-#define SERVER_ADDR "3.120.89.246"
-#define SERVER_ADDR_IPv6 "2001:db8::2"
-#define SERVER_PORT 8000
+#define ZEPHYR_ADDR "2001:db8::1"
+#define SERVER_ADDR "2001:db8::2"
+#define SERVER_PORT 1883
 
 volatile bool quit = false;
 bool connected = false;
@@ -42,43 +44,67 @@ void button_handler(uint32_t state, uint32_t has_changed);
 void bt_ready();
 
 #ifndef DISABLE_NH3
-#define CS_PIN 27
-#define SCK_PIN 26
-#define SDO_PIN 2
 
-struct nh3_spi_data {
-  bool OL;
-  bool OH;
-  uint32_t value;
-};
-
-void set_cs();
-void clear_cs();
-int read_nh3_data(nrfx_spim_t *instance, nrfx_spim_xfer_desc_t *transf);
-
-void print_spi_data(uint8_t *spi_data, size_t size);
-void format_nh3_data(uint8_t *spi_data, struct nh3_spi_data *_out_data);
-void print_nh3_struct(struct nh3_spi_data *data);
 #endif
 
 void mqtt_evt_handler(struct mqtt_client *client, const struct mqtt_evt *evt);
 
+int sock;
+struct sockaddr my_addr;
+char buffer[256] = {0};
+struct sockaddr sender;
+socklen_t addr_len;
+
+int32_t err;
 void main(void) {
   LOG_INF("Hello World! %s", CONFIG_BOARD);
 
-  if (ERROR(dk_buttons_init(button_handler)))
-    printk("Error initializing buttons");
+  init_network();
 
-  int err = bt_enable(NULL);
+  // sock = zsock_socket(AF_INET6, SOCK_RAW, IPPROTO_ICMPV6);
+  // if (sock < 0) {
+  //   err = errno;
+  //   LOG_ERR("Couldn't craete ICMP socket, %d", err);
+  //   return;
+  // }
+
+  // struct sockaddr_in6 *my_addr6 = (struct sockaddr_in6 *)&my_addr;
+  // my_addr6->sin6_family = AF_INET6;
+  // zsock_inet_pton(AF_INET6, "2001:db8::1", &my_addr6->sin6_addr);
+
+  // err = zsock_bind(sock, &my_addr, sizeof(my_addr));
+  // if (err < 0) {
+  //   LOG_ERR("Failed to bind socket, %d", err);
+  //   return;
+  // }
+
+  // struct zsock_pollfd fds2[1];
+  // fds2[0].fd = sock;
+  // fds2[0].events = ZSOCK_POLLIN;
+
+  // while (true) {
+  //   zsock_poll(fds2, 1, 5000);
+  //   zsock_recvfrom(sock, buffer, 256, 0, &sender, &addr_len);
+  //   LOG_HEXDUMP_DBG(buffer, 256, "recive buffer");
+  // }
+
+  if (ERROR(dk_buttons_init(button_handler)))
+    LOG_ERR("Error initializing buttons");
+
+  err = bt_enable(NULL);
   if (ERROR(err)) LOG_ERR("Error enabling BT %d", err);
   bt_ready();
+
+  LOG_DBG("Waiting for connection...");
+  // k_sleep(K_MSEC(60000));
+  LOG_DBG("Stopped waitting");
 
   struct sockaddr_in6 *broker6 = (struct sockaddr_in6 *)&broker;
   broker6->sin6_family = AF_INET6;
   broker6->sin6_port = htons(SERVER_PORT);
-  err = net_addr_pton(AF_INET6, SERVER_ADDR_IPv6, &broker6->sin6_addr);
+  err = net_addr_pton(AF_INET6, SERVER_ADDR, &broker6->sin6_addr);
   LOG_DBG("TEST: %d", err);
-  // zsock_inet_pton(AF_INET6, SERVER_ADDR_IPv6, &broker6->sin6_addr);
+  // zsock_inet_pton(AF_INET6, SERVER_ADDR, &broker6->sin6_addr);
 
   uint8_t *client_id = "ZEPHYR_mqtt_client";
   mqtt_client_init(&client_ctx);
@@ -97,8 +123,10 @@ void main(void) {
 
   int rc = mqtt_connect(&client_ctx);
   if (rc != 0) {
-    LOG_ERR("ERROR: %d", rc);
-    while(!quit) k_sleep(K_MSEC(1000));
+    LOG_ERR("MQTT ERROR: %d", rc);
+    while (!quit) {
+      k_sleep(K_MSEC(1000));
+    }
     return;
   }
   struct zsock_pollfd fds[1];
@@ -114,7 +142,7 @@ void main(void) {
 
   if (connected) {
     uint8_t *message = "Hello world from Zephyr";
-    uint8_t *topic = "testtopic/zephyr";
+    uint8_t *topic = "TEST";
     struct mqtt_publish_param param = {0};
     param.message.payload.data = message;
     param.message.payload.len = sizeof(message) - 1;
@@ -125,31 +153,12 @@ void main(void) {
   }
 
 #ifndef DISABLE_NH3
-  nrfx_spim_t instance = NRFX_SPIM_INSTANCE(0);
-  nrfx_spim_config_t config = NRFX_SPIM_DEFAULT_CONFIG(
-      SCK_PIN,
-      NRFX_SPIM_PIN_NOT_USED,
-      SDO_PIN, NRFX_SPIM_PIN_NOT_USED);
-  config.mode = NRF_SPIM_MODE_3;
-  nrf_gpio_cfg_output(CS_PIN);
-  set_cs();
-  if (nrfx_spim_init(&instance, &config, NULL, NULL) != NRFX_SUCCESS)
-    printk("Could't enable spi\n");
-
-  uint8_t rx_buff[3];
-  struct nh3_spi_data data;
-  nrfx_spim_xfer_desc_t transf = NRFX_SPIM_XFER_RX(rx_buff, 3);
+  init_nh3();
 #endif
 
   while (!quit && connected) {
 #ifndef DISABLE_NH3
-    int err = read_nh3_data(&instance, &transf);
-    printk("ERROR_CODE: %d\n", err);
-    if (err == NRFX_SUCCESS) {
-      print_spi_data(rx_buff, sizeof(rx_buff));
-      format_nh3_data(rx_buff, &data);
-      print_nh3_struct(&data);
-    }
+    read_and_print_nh3();
 #endif
     zsock_poll(fds, 1, 5000);
     mqtt_input(&client_ctx);
@@ -157,7 +166,7 @@ void main(void) {
     k_sleep(K_MSEC(2000));
   }
 
-  printk("QUIT\n");
+  LOG_INF("QUIT\n");
   mqtt_disconnect(&client_ctx);
   bt_le_adv_stop();
   bt_disable();
@@ -178,53 +187,6 @@ void bt_ready() {
 
   LOG_DBG("%d\n", err);
 }
-
-#ifndef DISABLE_NH3
-static inline void set_cs() {
-  nrf_gpio_pin_set(CS_PIN);
-  k_sleep(K_NSEC(100));
-}
-
-static inline void clear_cs() {
-  nrf_gpio_pin_clear(CS_PIN);
-  k_sleep(K_NSEC(100));
-}
-
-int read_nh3_data(nrfx_spim_t *instance, nrfx_spim_xfer_desc_t *transf) {
-  uint32_t ready = 1;
-  do {
-    clear_cs();
-    ready = nrf_gpio_pin_read(SDO_PIN);
-    if (ready != 0) {
-      set_cs();
-      k_sleep(K_MSEC(10));
-    }
-    printk("0x%x\n", ready);
-  } while (ready != 0);
-
-  int err = nrfx_spim_xfer(instance, transf, 0);
-  set_cs();
-  return err;
-}
-
-void print_spi_data(uint8_t *spi_data, size_t size) {
-  printk("DATA:");
-  for (size_t i = 0; i < size; i++)
-    printk(" %x", spi_data[i]);
-  printk("\n");
-}
-
-void format_nh3_data(uint8_t *spi_data, struct nh3_spi_data *_out_data) {
-  _out_data->OL = spi_data[0] >> 7;
-  _out_data->OH = (spi_data[0] >> 6) & 0x01;
-  _out_data->value = spi_data[2] | spi_data[1] << 8 | (spi_data[0] & 0x1f) << 16;
-  _out_data->value |= ((spi_data[0] & 0x20) << 2) << 24;
-}
-
-void print_nh3_struct(struct nh3_spi_data *data) {
-  printk("OL: %d OH: %d VALUE: %d", data->OL, data->OH, data->value);
-}
-#endif
 
 void mqtt_evt_handler(struct mqtt_client *client, const struct mqtt_evt *evt) {
   switch (evt->type) {
