@@ -1,0 +1,9 @@
+{
+    "idf.portWin": "COM5",
+    "idf.adapterTargetName": "esp32c3",
+    "idf.openOcdConfigs": [
+        "board/esp32c3-ftdi.cfg"
+    ],
+    "idf.espIdfPathWin": "C:\\Users\\OMISTAJA\\esp\\esp-idf",
+    "idf.toolsPathWin": "C:\\Espressif"
+}
