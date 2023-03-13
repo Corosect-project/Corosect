@@ -1,12 +1,13 @@
 #include <Wire.h>
-
-//VAIHDA PINNIT 6 JA 7:ÄÄN!!!!!!!!!!!!
+#include <stdio.h>
+#include <iostream>
 const int I2C_SDA_PIN = 6, I2C_SCL_PIN = 7;
 #define co2_addr 0x29 //i2c osoite co2 anturille, oletuksena 0x29 (41)
-
+int x = 0;
 void setup() {
   Serial.begin(115200);
   Wire.setPins(I2C_SDA_PIN, I2C_SCL_PIN);
+  Wire.setClock(1000000);
   Wire.begin();
 
    /* Poistetaan CRC käytöstä */
@@ -44,26 +45,12 @@ void readCo2Sensor(){
 
   delay(100); //Tarvitaan viive ennen lukua (saattaa toimia pienemmälläkin)
   
-  int i = 0;
-  uint8_t bytes[4]={0,0,0,0}; 
-  uint16_t co2_result=0,temp_result=0;
-  
-  /* Luetaan saadut tiedot */
-  Wire.requestFrom(co2_addr, 4); //luetaan 4 tavua, tiedot ensin kaasusta ja sitten lämpötilasta
+  Wire.requestFrom(co2_addr, 6); //luetaan 2 tavua, tiedot kaasusta (ei lämpötilaa)
   while(Wire.available()){
-    bytes[i] = Wire.read(); //Data tulee MSB ensin 
-    ++i;
+    Serial.print(byte(Wire.read()));
+    Serial.print(" ");
   }
-  //liitetään molemmat tavut yhdeksi arvoksi
-  co2_result = ((uint16_t)bytes[0] << 8) | (uint16_t)bytes[1]; //rullataan ensimmäistä tavua vasemmalle 8 paikkaa ja sitten bittitason OR, jotta saadaan yksi 16 bittinen arvo.
-  temp_result = ((uint16_t)bytes[2] << 8) | (uint16_t)bytes[3]; //sama mutta lämpötilalle
-  
-  //Tarkistusta varten
-  Serial.print("Co2: ");
-  Serial.print(co2_result);
-  Serial.print("\t");
-  Serial.print("Temp: ");
-  Serial.println(temp_result);
+  Serial.println();
 }
 
 
@@ -75,9 +62,14 @@ void CO2_sleep(){ //CO2 nukuttaminen
 }
 
 void CO2_wakeup(){ //CO2 Herättäminen
+    char number [33];
+    itoa(x, number, 16);
+    Serial.println(String("Numero: ") + number);
     Wire.beginTransmission(co2_addr);
-    Wire.write(0x0); //Herätys komento
+    Wire.write(number); //Herätys komento
     Wire.endTransmission();
+
+    x++;
 }
 
 void loop() {
@@ -91,6 +83,7 @@ void loop() {
   delay(1300);
   Serial.println("sensori herätetään");
   CO2_wakeup();
+  delay(1300);
   readCo2Sensor();
   delay(1000);
 }
