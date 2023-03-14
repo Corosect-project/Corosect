@@ -10,23 +10,31 @@ Set target board to `esp32c3` with
 idf.py set-target esp32c3
 ```
 
-Run to configure if required (should currently run with default configuration).
+### Run to configure
 ```
 idf.py menuconfig
 ```
+Project related configuration can be found under `Corosect project configuration --->`
 
-Build with
+![](menuconfig.png)
+
+#### Configure at least the following:
+```
+Corosect project configuration ---> WiFi configuration ---> WiFi SSID
+Corosect project configuration ---> MQTT configuration ---> MQTT Broker URI
+```
+Optional configuration for I2C can be found under `Corosect project configuration ---> I2C configuration`, by default the program will use GPIO 6 for SDA and GPIO 7 for SCL with a master clock frequency of 1MHz.
+
+### Build with
 ```
 idf.py build            # build
 idf.py -p PORT flash    # build and flash board.
 ```
 
-Open serial monitor
+#### Open serial monitor
 ```
 idf.py -p PORT monitor          # open serial monitor
 idf.py -p PORT flash monitor    # build, flash board and open serial monitor
 ```
 `Ctrl + ]` to exit the serial console.
 
-
-![hassun](hauska.jpg)
