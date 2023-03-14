@@ -1,0 +1,76 @@
+menu "Corosect project configuration"
+
+    menu "I2C configuration"
+        config I2C_MASTER_SDA
+            int "SDA GPIO num"
+            default 6
+            help 
+                I2C data line pin.
+
+        config I2C_MASTER_SCL
+            int "SCL GPIO num"
+            default 7
+            help 
+                I2C clock line pin.
+
+        config I2C_MASTER_FREQ
+            int "Master clock frequency (Hz)"
+            default 100000
+            help
+                I2C Master clock frequency. Maximum for RTC is 1MHz.
+
+        config I2C_CO2_ADDR
+            hex "I2C address for STC31 CO2 sensor"
+            default 0x29
+            help
+                I2C address for STC31 CO2 sensor. By default 0x29 (41).
+    endmenu
+
+    menu "WiFi configuration"
+        config WIFI_SSID
+            string "WiFi SSID"
+            default ""
+            help
+                SSID for the network to connect to.
+
+        config WIFI_PASSWORD
+            string "WiFi password"
+            default ""
+            help
+                Password for the network. 
+                Leave blank if not required.
+
+        config WIFI_RETRY_MAX
+            int "Retry attempts"
+            default 5
+            help
+                Number of times a connection to the specified AP is attempted.
+
+        choice WIFI_SCAN_METHOD
+            prompt "Scan method"
+            default WIFI_FAST_SCAN
+            help
+                WiFi scan method.
+
+            config WIFI_FAST_SCAN
+                bool "fast"
+                help
+                    stop scan as soon as network is found
+
+            config WIFI_ALL_CHANNEL_SCAN
+                bool "all"
+                help
+                    keep scanning whole channel
+        endchoice
+    endmenu
+
+    menu "MQTT configuration"
+        config MQTT_BROKER
+            string "MQTT Broker URI"
+            default ""
+            help
+                URI for the MQTT broker to connect to.
+                Note: needs to be in the form of mqtt://broker.address.here
+    endmenu
+endmenu
+
