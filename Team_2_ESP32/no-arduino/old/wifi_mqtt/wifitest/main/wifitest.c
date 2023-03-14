@@ -50,13 +50,8 @@ static void mqtt_event_handler(void *handler_args, esp_event_base_t base, int32_
         case MQTT_EVENT_CONNECTED:
             ESP_LOGI(MQTT_TAG,"MQTT_EVENT_CONNECTED");
             msg_id = esp_mqtt_client_publish(client, "/topic/qos1", "dataa tulee", 0, 1, 0);
-            ESP_LOGI(MQTT_TAG, "sent publis succesful, msg_id=%d", msg_id);
-            while(1){
-                vTaskDelay(1000 /portTICK_PERIOD_MS);
-            msg_id = esp_mqtt_client_publish(client, "/topic/qos1", "dataa tulee", 0, 1, 0);
-            ESP_LOGI(MQTT_TAG, "sent publis succesful, msg_id=%d", msg_id);
+            ESP_LOGI(MQTT_TAG, "sent publish succesful, msg_id=%d", msg_id);
 
-            }
 
             /*            msg_id = esp_mqtt_client_subscribe(client, "/topic/qos0", 0);
                           ESP_LOGI(MQTT_TAG, "sent subscribe succesful, msg_id=%d", msg_id);
@@ -71,8 +66,8 @@ static void mqtt_event_handler(void *handler_args, esp_event_base_t base, int32_
 
         case MQTT_EVENT_SUBSCRIBED:
             ESP_LOGI(MQTT_TAG,"MQTT_EVENT_SUBSCRIBED, msg_id=%d",event->msg_id);
-            msg_id = esp_mqtt_client_publish(client,"/topic/qos0","data", 0, 0, 0);
-            ESP_LOGI(MQTT_TAG,"Sent publish succesful, msg_id=%d", msg_id);
+/*            msg_id = esp_mqtt_client_publish(client,"/topic/qos0","data", 0, 0, 0);
+            ESP_LOGI(MQTT_TAG,"Sent publish succesful, msg_id=%d", msg_id);*/
             break;
         case MQTT_EVENT_UNSUBSCRIBED:
             ESP_LOGI(MQTT_TAG,"MQTT_EVENT_UNSUBSCRIBED, msg_id=%d",event->msg_id);
