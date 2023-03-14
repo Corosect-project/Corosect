@@ -21,10 +21,6 @@
 /* RTC maximum SCL frequency is 1MHz */
 #define I2C_MASTER_FREQ_HZ CONFIG_I2C_MASTER_FREQ
 
-/* Address for Click Co2 sensor */
-#define I2C_CO2_ADDR 0x29 
-
-
 static const char* TAG = "esp_i2c";
 
 esp_err_t i2c_master_init(void){
