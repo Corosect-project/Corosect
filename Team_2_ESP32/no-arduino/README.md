@@ -23,7 +23,7 @@ Project related configuration can be found under `Corosect project configuration
 Corosect project configuration ---> WiFi configuration ---> WiFi SSID
 Corosect project configuration ---> MQTT configuration ---> MQTT Broker URI
 ```
-Optional configuration for I2C can be found under `Corosect project configuration ---> I2C configuration`, by default the program will use GPIO 6 for SDA and GPIO 7 for SCL with a master clock frequency of 1MHz.
+Optional configuration for I2C can be found under `Corosect project configuration ---> I2C configuration`, by default the program will use GPIO 6 for SDA and GPIO 7 for SCL with a master clock frequency of 1MHz and assumes 0x29 as the sensor address.
 
 ### Build with
 ```
