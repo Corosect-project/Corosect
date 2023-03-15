@@ -3,8 +3,12 @@
 
 #include "mqtt_client.h"
 
-/* Starts WiFi in station mode */
-void wifi_init_sta(void);
+/* Starts WiFi in station mode 
+ * Returns: 
+ * ESP_OK (0) on success
+ * ESP_FAIL (-1) on failure
+ */
+esp_err_t wifi_init_sta(void);
 
 /* starts MQTT connection */
 void mqtt_app_start(void);

@@ -46,7 +46,8 @@ esp_err_t i2c_master_init(void){
 
 }
 
-/* Write 16 bit command to i2c slave */
+/* Write 16 bit command to i2c slave 
+ * TODO: ugly solution. Make into a generic write function that can handle n length commands and args*/
 esp_err_t i2c_write(uint8_t addr, uint8_t cmdh, uint8_t cmdl){
     esp_err_t ret;
     i2c_cmd_handle_t cmd = i2c_cmd_link_create(); 
@@ -62,7 +63,8 @@ esp_err_t i2c_write(uint8_t addr, uint8_t cmdh, uint8_t cmdl){
     return ret;
 }
 
-/* Write 16 bit command to i2c slave with 16 bit argument */
+/* Write 16 bit command to i2c slave with 16 bit argument
+ * TODO: ugly solution. Make into a generic write function that can handle n length commands and args*/
 esp_err_t i2c_write_with_arg(uint8_t addr, uint8_t cmdh, uint8_t cmdl, uint8_t argh, uint8_t argl){
     esp_err_t ret;
     i2c_cmd_handle_t cmd = i2c_cmd_link_create(); 
@@ -76,6 +78,20 @@ esp_err_t i2c_write_with_arg(uint8_t addr, uint8_t cmdh, uint8_t cmdl, uint8_t a
     ret = i2c_master_cmd_begin(0, cmd, 1000/portTICK_PERIOD_MS);
     i2c_cmd_link_delete(cmd);
 
+    return ret;
+
+}
+
+/* Sends wakeup command (address + write bit) to given slave */
+esp_err_t i2c_wakeup_sensor(uint8_t addr){
+    esp_err_t ret;
+    i2c_cmd_handle_t cmd = i2c_cmd_link_create();
+    i2c_master_start(cmd);
+    i2c_master_write_byte(cmd, addr << 1 | 0x0, 0x0);
+    i2c_master_stop(cmd);
+    ret = i2c_master_cmd_begin(0,cmd,1000/portTICK_PERIOD_MS);
+    i2c_cmd_link_delete(cmd);
+    
     return ret;
 
 }

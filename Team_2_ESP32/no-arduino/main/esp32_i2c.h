@@ -40,4 +40,12 @@ esp_err_t i2c_write_with_arg(uint8_t addr, uint8_t cmdh, uint8_t cmdl, uint8_t a
  */
 esp_err_t i2c_read(uint8_t addr, uint8_t *data, size_t len);
 
+
+/* Send wakeup command to STC31 sensor 
+ * addr: address of device to wake up
+ * NOTE: does NOT wait for sensor to wake up
+ *
+ * returns 0 on success */
+esp_err_t i2c_wakeup_sensor(uint8_t addr);
+
 #endif // _ESP32_I2C_H

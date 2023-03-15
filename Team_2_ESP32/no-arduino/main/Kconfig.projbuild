@@ -72,5 +72,29 @@ menu "Corosect project configuration"
                 URI for the MQTT broker to connect to.
                 Note: needs to be in the form of mqtt://broker.address.here
     endmenu
+
+    config SAMPLES
+        int "Samples"
+        default 5
+        help
+            Number of measurements taken every cycle.
+    config MEASURE_INTERVAL
+        int "Measurement interval (ms)"
+        default 1000
+        help
+            Time between each measurement. 
+            Should be >= 1000.
+
+    config SLEEP_MS
+        int "Sleep time (ms)"
+        default 5000
+        help
+            Time to sleep between each cycle.
+    config ERR_SLEEP_MS
+        int "Sleep time in case of failure (ms)"
+        default 5000
+        help
+            Time to sleep in case of a failure during WiFi or MQTT connection.
+
 endmenu
 

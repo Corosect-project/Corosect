@@ -141,7 +141,7 @@ void mqtt_send_result(uint16_t val, char *topic){
 }
 
 
-void wifi_init_sta()
+esp_err_t wifi_init_sta()
 {
     s_wifi_event_group = xEventGroupCreate();
     ESP_ERROR_CHECK(esp_netif_init());
@@ -184,9 +184,12 @@ void wifi_init_sta()
 
     if(bits & WIFI_CONNECTED_BIT){
         ESP_LOGI(TAG,"connected to %s",ESP_WIFI_SSID);
+        return 0;
     }else if(bits & WIFI_FAIL_BIT){
         ESP_LOGI(TAG,"failed to connect to %s",ESP_WIFI_SSID);
+        return -1;
     }else{
         ESP_LOGE(TAG,"this shouldn't happen");
+        return -1;
     }
 }
