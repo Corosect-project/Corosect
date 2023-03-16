@@ -15,6 +15,7 @@ struct nh3_spi_data {
 };
 
 void init_nh3();
+void read_and_print_nh3();
 
 int read_nh3_data(nrfx_spim_t *instance, nrfx_spim_xfer_desc_t *transf);
 
