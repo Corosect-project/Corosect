@@ -92,8 +92,8 @@ static inline esp_err_t sensor_sleep(){
 
 static inline esp_err_t sensor_wake(){
     esp_err_t ret = i2c_wakeup_sensor(I2C_CO2_ADDR);
-    /* Sensor needs time to wake up, 25ms seems reliable */
-    vTaskDelay(25 / portTICK_PERIOD_MS); 
+    /* Sensor needs time to wake up, 50ms seems reliable */
+    vTaskDelay(50 / portTICK_PERIOD_MS); 
     return ret;
 
 }
