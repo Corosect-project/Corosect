@@ -41,6 +41,7 @@ static EventGroupHandle_t s_wifi_event_group;
 static const char *TAG = "wifi";
 static const char *MQTT_TAG = "MQTT";
 static int s_retry_num = 0;
+static int mqtt_retry = 0;
 
 static esp_mqtt_client_handle_t client;
 
@@ -60,8 +61,9 @@ static void mqtt_event_handler(void *handler_args, esp_event_base_t base, int32_
     switch((esp_mqtt_event_id_t)event_id){
         case MQTT_EVENT_CONNECTED:
             ESP_LOGI(MQTT_TAG,"MQTT_EVENT_CONNECTED");
-            msg_id = esp_mqtt_client_publish(client, "/topic/qos1", "dataa tulee", 0, 1, 0);
-            ESP_LOGI(MQTT_TAG, "sent publish succesful, msg_id=%d", msg_id);
+            mqtt_retry = 0;
+/*            msg_id = esp_mqtt_client_publish(client, "/topic/qos1", "dataa tulee", 0, 1, 0);
+            ESP_LOGI(MQTT_TAG, "sent publish succesful, msg_id=%d", msg_id);*/
             break;
         case MQTT_EVENT_DISCONNECTED:
             ESP_LOGI(MQTT_TAG,"MQTT_EVENT_DISCONNECTED");
@@ -87,7 +89,18 @@ static void mqtt_event_handler(void *handler_args, esp_event_base_t base, int32_
                 log_error_if_nonzero("reported from tls stack", event->error_handle->esp_tls_stack_err);
                 log_error_if_nonzero("captured as transport's socket errno",event->error_handle->esp_transport_sock_errno);
                 ESP_LOGI(MQTT_TAG,"Last errno string (%s)",strerror(event->error_handle->esp_transport_sock_errno));
-            }
+                /* esp-tls 0x8006 ESP_ERR_ESP_TLS_CONNECTION_TIMEOUT 
+                 * TCP connection timeout 
+                if(event->error_handle->esp_tls_last_esp_err == 0x8006){
+                    if(mqtt_retry < 3){
+                        ESP_LOGE(MQTT_TAG,"Got TCP timeout error, trying again");
+                        mqtt_app_start();
+                        ++mqtt_retry;
+                    }else{
+                        ESP_LOGE(MQTT_TAG,"Got TCP timeout error, tried max");
+                    }*/
+
+                }
             break;
 
         default:
