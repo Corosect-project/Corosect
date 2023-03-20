@@ -9,7 +9,7 @@
 #include <WiFi.h>
 #include <PubSubClient.h>
 #include <esp_sleep.h>
-
+#include <esp_wifi.h>
 
 #define co2_addr 0x29 //i2c osoite co2 anturille, oletuksena 0x29 (41)
 #define WL_MAX_ATTEMPTS 3 //Maksimimäärä sallittuja yrityksiä wlanin yhdistämiselle
@@ -110,10 +110,10 @@ void setup() {
     Serial.println("Ei löytynyt");
   }
 
-  sleepconfig();
+  sleepconfig(); //sleep tilan määrittely
 }
 
-void sleepconfig(){
+void sleepconfig(){ //Sleep tilan määrittely
   esp_sleep_pd_config(ESP_PD_DOMAIN_RTC_PERIPH, ESP_PD_OPTION_OFF);
   esp_sleep_pd_config(ESP_PD_DOMAIN_RTC_SLOW_MEM, ESP_PD_OPTION_OFF);
   esp_sleep_pd_config(ESP_PD_DOMAIN_RTC_FAST_MEM, ESP_PD_OPTION_OFF);
@@ -122,6 +122,7 @@ void sleepconfig(){
   esp_sleep_pd_config(ESP_PD_DOMAIN_MAX, ESP_PD_OPTION_OFF);
   esp_sleep_pd_config(ESP_PD_DOMAIN_CPU, ESP_PD_OPTION_OFF);
   esp_sleep_pd_config(ESP_PD_DOMAIN_VDDSDIO, ESP_PD_OPTION_OFF);
+  esp_sleep_disable_wifi_wakeup();
 }
 
 void setLED(LED_COLOR color){
@@ -228,7 +229,7 @@ void connectMQTT(){
 void goToSleep(int ms){
   PROGRAM_STATE = PROGRAM_START;
   disableWifi(); //varmaan turha jos nukkumistila kuitenkin sammuttaa wifin mutta onpa kuitenkin
-
+  esp_wifi_stop();
   esp_sleep_enable_timer_wakeup(ms*1000); //ajastin käyttää aikaa mikrosekunneissa
   esp_deep_sleep_start();
   
