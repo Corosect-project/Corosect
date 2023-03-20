@@ -77,6 +77,20 @@ void setup() {
 
   client.setServer(broker,port); //MQTT asetukset
 
+  initializei2c(); //Alustetaan asetukset sensorille
+  
+  checkWifiAvailable();
+  if(PROGRAM_STATE == WLAN_FOUND){
+    Serial.println("Wifi löytyi");
+  }else{
+    Serial.println("Ei löytynyt");
+  }
+
+  sleepconfig(); //sleep tilan määrittely
+}
+
+
+void initializei2c(){ //Ajetaan alustus asetukset sensorille
   /* Poistetaan CRC käytöstä */
   Wire.beginTransmission(co2_addr);
   Wire.write(0x37);Wire.write(0x68); //0x3768 disable CRC
@@ -103,14 +117,6 @@ void setup() {
   Wire.write(0x00);Wire.write(0x01); //arg 0x0001 CO2 in air 0 to 100
   Wire.endTransmission();
 
-  checkWifiAvailable();
-  if(PROGRAM_STATE == WLAN_FOUND){
-    Serial.println("Wifi löytyi");
-  }else{
-    Serial.println("Ei löytynyt");
-  }
-
-  sleepconfig(); //sleep tilan määrittely
 }
 
 void sleepconfig(){ //Sleep tilan määrittely
@@ -228,11 +234,12 @@ void connectMQTT(){
 
 void goToSleep(int ms){
   PROGRAM_STATE = PROGRAM_START;
+  CO2_sleep(); //Nukutetaan anturi
   disableWifi(); //varmaan turha jos nukkumistila kuitenkin sammuttaa wifin mutta onpa kuitenkin
   esp_wifi_stop();
   esp_sleep_enable_timer_wakeup(ms*1000); //ajastin käyttää aikaa mikrosekunneissa
   esp_deep_sleep_start();
-  
+  CO2_wakeup();
   Serial.println("Krooh pyyh");
 }
 
@@ -305,8 +312,9 @@ void CO2_sleep(){ //CO2 nukuttaminen
 
 void CO2_wakeup(){ //CO2 Herättäminen
     Wire.beginTransmission(co2_addr);
-    Wire.write(0x0); //Herätys komento
     Wire.endTransmission();
+    Wire.requestFrom(co2_addr,7,true);
+    initializei2c(); //Asetetaan anturin asetukset
 }
 
 void loop() {
