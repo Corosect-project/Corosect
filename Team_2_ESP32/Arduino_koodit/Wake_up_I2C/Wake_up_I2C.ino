@@ -11,12 +11,12 @@ void setup() {
   Wire.begin();
   Serial.begin(115200);
 
-  iniliaze();
+  i2c_iniliaze(); //i2c alustus
 
 }
 
 
-void iniliaze(){
+void i2c_iniliaze(){ //Asetetaan i2c asetukset käyttöön
 
   /* Poistetaan CRC käytöstä */
   Wire.beginTransmission(co2_addr);
@@ -58,7 +58,7 @@ void loop() {
   delay(1000);
   CO2_wakeup();
   delay(1000);
-  iniliaze();
+  i2c_iniliaze(); //i2c alustus
   delay(1000);
 }
 
