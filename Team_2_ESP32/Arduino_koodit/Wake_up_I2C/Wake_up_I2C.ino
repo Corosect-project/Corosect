@@ -66,7 +66,7 @@ void loop() {
 
 void CO2_sleep(){ //CO2 nukuttaminen
   Wire.beginTransmission(co2_addr);
-  Wire.write(0x36);Wire.write(0x77); //Sleep tilan käyttöön otto
+  Wire.write(0x36); Wire.write(0x77); //Sleep tilan käyttöön otto
   Wire.endTransmission();
   Serial.println("Nukkuu");
 }

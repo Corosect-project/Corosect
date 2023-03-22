@@ -19,8 +19,7 @@
 #define SAMPLES 10 //montako kertaa mitataan
 
 /* Pinnit eivät voi olla oletuspinnit, koska pinniä 8 tarvitaan LEDin kanssa*/
-const int I2C_SDA_PIN = 6;
-const int I2C_SCL_PIN = 7;
+const int I2C_SDA_PIN = 6, I2C_SCL_PIN = 7;
 
 
 
@@ -50,47 +49,39 @@ enum LED_COLOR{
 };
 
 //Wifi
-char ssid[]="panoulu";
-char pass[]="";
+char ssid[]="panoulu", pass[]="";
 
 //MQTT
-char broker[]="100.64.254.11";
+char broker[]="100.64.254.11", devname[] = "esp32";
 int port = 1883;
-char devname[] = "esp32";
 
-char co2_topic[]="co2";
-char temp_topic[]="temp";
+char co2_topic[]="co2", temp_topic[]="temp";
 
 WiFiClient espClient;
 PubSubClient client(espClient);
 
 void setup() {
   Serial.begin(115200);
-  while(!Serial){
-    delay(100);
+  while(!Serial){ 
+    delay(10); 
   }
 
   PROGRAM_STATE = PROGRAM_START;
   Wire.setPins(I2C_SDA_PIN, I2C_SCL_PIN);
   Wire.setClock(1000000);
-  Wire.begin(I2C_SDA_PIN, I2C_SCL_PIN);
+  Wire.begin();
 
   client.setServer(broker,port); //MQTT asetukset
 
-  initializei2c(); //Alustetaan asetukset sensorille
+  initializei2c_CO2(); //Alustetaan asetukset sensorille i2c:n yli
   
   checkWifiAvailable();
-  if(PROGRAM_STATE == WLAN_FOUND){
-    Serial.println("Wifi löytyi");
-  }else{
-    Serial.println("Ei löytynyt");
-  }
-
+  PROGRAM_STATE == WLAN_FOUND ? Serial.println("Wifi löytyi") : Serial.println("Ei löytynyt"); //Katsotaan onko WiFi löytynyt
   sleepconfig(); //sleep tilan määrittely
 }
 
 
-void initializei2c(){ //Ajetaan alustus asetukset sensorille
+void initializei2c_CO2(){ //Ajetaan alustus asetukset sensorille
   /* Poistetaan CRC käytöstä */
   Wire.beginTransmission(co2_addr);
   Wire.write(0x37);Wire.write(0x68); //0x3768 disable CRC
@@ -116,7 +107,8 @@ void initializei2c(){ //Ajetaan alustus asetukset sensorille
   Wire.write(0x36);Wire.write(0x15); //0x3165 set binary gas
   Wire.write(0x00);Wire.write(0x01); //arg 0x0001 CO2 in air 0 to 100
   Wire.endTransmission();
-
+  
+  Wire.flush(); //Tyhjennetään i2c väylä
 }
 
 void sleepconfig(){ //Sleep tilan määrittely
@@ -158,18 +150,21 @@ void setLED(LED_COLOR color){
       neopixelWrite(RGB_BUILTIN,255,162,0);
       break;
     default:
-    break;
+      break;
   }  
 }
 
 void checkWifiAvailable(){
   bool flag = false;
   byte n = WiFi.scanNetworks();
-  
   for(int i = 0; i < n; ++i){
     Serial.println(WiFi.SSID(i));
-    if(WiFi.SSID(i).compareTo(ssid) == 0){ flag=true; break;}
+    if(WiFi.SSID(i).compareTo(ssid) == 0) { 
+      flag=true; 
+      break; 
+    }
   }
+  WiFi.scanDelete(); //Tyhjennetään WiFi haun muisti
   PROGRAM_STATE = (flag) ? WLAN_FOUND : WLAN_NOT_FOUND;
 }
 
@@ -182,13 +177,11 @@ void connectWifi(){
 
     int attempts = 0;
     while(WiFi.status() != WL_CONNECTED){
-      if(attempts >= WL_MAX_ATTEMPTS){
+      if(attempts >= WL_MAX_ATTEMPTS){ 
         PROGRAM_STATE = WLAN_CONNECT_ERROR;
         break;
       }
-        
       Serial.print(".");
-      
       delay(WL_CONNECT_TRY_TIME);
       ++attempts;
     }
@@ -198,8 +191,7 @@ void connectWifi(){
       Serial.println("Yhdistettiin!");
     }else{
       PROGRAM_STATE = WLAN_CONNECT_ERROR;
-      Serial.print("Ei yhdistetty ");
-      Serial.println(WiFi.status());
+      Serial.println(String("Ei yhdistetty ") + WiFi.status());
     }
   
   
@@ -234,17 +226,21 @@ void connectMQTT(){
 
 void goToSleep(int ms){
   PROGRAM_STATE = PROGRAM_START;
-  CO2_sleep(); //Nukutetaan anturi
+  i2c_CO2_sleep(); //Nukutetaan anturi i2c yli
   disableWifi(); //varmaan turha jos nukkumistila kuitenkin sammuttaa wifin mutta onpa kuitenkin
-  esp_wifi_stop();
+  esp_wifi_stop(); //Pysätetään WiFi esp:n kautta
   esp_sleep_enable_timer_wakeup(ms*1000); //ajastin käyttää aikaa mikrosekunneissa
-  esp_deep_sleep_start();
-  CO2_wakeup();
+  esp_deep_sleep_start(); //Käynnistetään syvä uni tila
+  
   Serial.println("Krooh pyyh");
+
+  i2c_CO2_wakeup(); //Herätetään I2C anturi
+  WiFi.setSleep(false); //Wifi pois nukkumistilasta
 }
 
 void disableWifi(){
   //WiFi pois päältä ja samalla katkeaa MQTT yhteys
+  WiFi.setSleep(true); //Wifin nukutus
   WiFi.disconnect(true); 
   WiFi.mode(WIFI_OFF);
   PROGRAM_STATE = PROGRAM_START;
@@ -274,15 +270,13 @@ void readCo2Sensor(){
   temp_result = ((uint16_t)test[2] << 8) | (uint16_t)test[3]; //sama mutta lämpötilalle
   
   //Tarkistusta varten
-  Serial.print("Co2: ");
-  Serial.print(co2_result);
-  Serial.print("\t");
-  Serial.print("Temp: ");
-  Serial.println(temp_result);
+  Serial.println("Co2: " + (String)co2_result + "\tTemp: "+ (String)temp_result);
 
   //Lähetetään nyt tiedot vaan suoraan brokerille
   sendResult(co2_result, co2_topic);
   sendResult(temp_result, temp_topic);
+
+  Wire.flush(); //Tyhjennetään i2c väylä
 }
 
 void sendResult(uint16_t val, char* topic){ 
@@ -304,17 +298,19 @@ void readResults(){
   PROGRAM_STATE = ALL_DONE;
 }
 
-void CO2_sleep(){ //CO2 nukuttaminen
+void i2c_CO2_sleep(){ //CO2 nukuttaminen i2c yli
   Wire.beginTransmission(co2_addr);
   Wire.write(0x36);Wire.write(0x77); //Sleep tilan käyttöön otto
   Wire.endTransmission();
+  Wire.flush(); //Tyhjennetään wire i2c tiedot
+
 }
 
-void CO2_wakeup(){ //CO2 Herättäminen
+void i2c_CO2_wakeup(){ //CO2 Herättäminen i2c yli
     Wire.beginTransmission(co2_addr);
     Wire.endTransmission();
     Wire.requestFrom(co2_addr,7,true);
-    initializei2c(); //Asetetaan anturin asetukset
+    initializei2c_CO2(); //Asetetaan anturin asetukset
 }
 
 void loop() {
@@ -354,6 +350,7 @@ void loop() {
         Serial.println("Mitattu, nukkumaan");
         setLED(BLACK);
         goToSleep(5000);
+        break;
     default:
         //lole
         break;
