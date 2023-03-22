@@ -14,15 +14,8 @@
 #include "esp32_i2c.h"
 #include "wifi_mqtt.h"
 
-#define LED_GPIO 8
-
-/* Set SDA and SCL pins to 6 and 7
- * Default pins incompatible with internal LED pin
-#define I2C_MASTER_SDA_IO 6
-#define I2C_MASTER_SCL_IO 7
-
- RTC maximum SCL frequency is 1MHz 
-#define I2C_MASTER_FREQ_HZ 1000000*/
+#define LED_GPIO CONFIG_LED_GPIO
+#define SENSOR_POWER_GPIO CONFIG_SENSOR_POWER_GPIO
 
 /* Address for Click Co2 sensor */
 #define I2C_CO2_ADDR CONFIG_I2C_CO2_ADDR
@@ -98,9 +91,20 @@ static inline esp_err_t sensor_wake(){
 
 }
 
-/*static void configure_led(){
+static void inline configure_pins(){
+    /* TODO: working LED everything */
+    // const uint32_t led_pin = 1 << LED_GPIO;
+
+
+    /* Create bit mask for CO2 sensor power pin */
+    const uint32_t power_pin = 1 << SENSOR_POWER_GPIO;
+
+    /* For now we just need to enable output on 1 pin
+     * this can be expanded to include more */
+    const uint32_t pins_mask = power_pin;
+
     gpio_config_t conf ={
-        .pin_bit_mask = 0x100,  Bit mask for GPIO 8 
+        .pin_bit_mask = pins_mask,
         .mode = GPIO_MODE_OUTPUT,
         .pull_up_en = GPIO_PULLUP_DISABLE,
         .pull_down_en = GPIO_PULLDOWN_ENABLE,
@@ -109,7 +113,7 @@ static inline esp_err_t sensor_wake(){
 
     gpio_config(&conf);
 
-}*/
+}
 
 void initialize_i2c(){
     uint8_t data[2]={-1};
@@ -136,13 +140,13 @@ void initialize_i2c(){
 
 void go_to_sleep(int ms){
     sensor_sleep();
-    /* hyi 
-    esp_sleep_pd_config(ESP_PD_DOMAIN_RTC_PERIPH, ESP_PD_OPTION_OFF);
-    esp_sleep_pd_config(ESP_PD_DOMAIN_RTC_SLOW_MEM, ESP_PD_OPTION_OFF);
-    esp_sleep_pd_config(ESP_PD_DOMAIN_XTAL, ESP_PD_OPTION_OFF);
-    esp_sleep_pd_config(ESP_PD_DOMAIN_RC_FAST, ESP_PD_OPTION_OFF);
-    esp_sleep_pd_config(ESP_PD_DOMAIN_CPU, ESP_PD_OPTION_OFF);
-    esp_sleep_pd_config(ESP_PD_DOMAIN_VDDSDIO, ESP_PD_OPTION_OFF);*/
+    gpio_set_level(SENSOR_POWER_GPIO,0); /* Power output for CO2 sensor */
+
+    /* esp_sleep_pd_config results in an assertion error so explicitly disable all wakeup sources
+     * this _should_ ensure that ESP_PD_OPTION_AUTO powers down all unnecessary domains */
+    esp_sleep_disable_wakeup_source(ESP_SLEEP_WAKEUP_ALL);
+
+    /* enable wakeup sources here */
     esp_sleep_enable_timer_wakeup(ms*1000);
     esp_deep_sleep_start();
 }
@@ -152,6 +156,9 @@ void app_main(void){
     uint16_t co2_result;
     uint16_t temp_result;
     int test;
+
+    configure_pins();
+    gpio_set_level(SENSOR_POWER_GPIO,1); /* Power output for CO2 sensor */
 
     nvs_flash_init();
     test = wifi_init_sta();

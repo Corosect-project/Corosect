@@ -96,5 +96,18 @@ menu "Corosect project configuration"
         help
             Time to sleep in case of a failure during WiFi or MQTT connection.
 
+    config SENSOR_POWER_GPIO
+        int "CO2 sensor power GPIO num"
+        default 3
+        help
+            GPIO for CO2 sensor power.
+
+    config LED_GPIO
+        int "LED GPIO num (WORK IN PROGRESS)"
+        default 8
+        help
+            GPIO that an indicator LED is attached to.
+
+
 endmenu
 
