@@ -72,6 +72,9 @@ void setup() {
   Wire.begin();
 
   client.setServer(broker,port); //MQTT asetukset
+  
+  
+  i2c_CO2_wakeup(); //Herätetään I2C anturi
 
   initializei2c_CO2(); //Alustetaan asetukset sensorille i2c:n yli
   
@@ -155,8 +158,9 @@ void setLED(LED_COLOR color){
 }
 
 void checkWifiAvailable(){
+  WiFi.setSleep(false); //Wifi pois nukkumistilasta
   bool flag = false;
-  byte n = WiFi.scanNetworks();
+  int n = WiFi.scanNetworks();
   for(int i = 0; i < n; ++i){
     Serial.println(WiFi.SSID(i));
     if(WiFi.SSID(i).compareTo(ssid) == 0) { 
@@ -174,7 +178,7 @@ void connectWifi(){
     WiFi.mode(WIFI_STA);
     WiFi.begin(ssid,pass);
     Serial.print("Aloitetaan yhteys");
-
+    Serial.println((String)"Wifin tila" + WiFi.status());
     int attempts = 0;
     while(WiFi.status() != WL_CONNECTED){
       if(attempts >= WL_MAX_ATTEMPTS){ 
@@ -184,7 +188,7 @@ void connectWifi(){
       Serial.print(".");
       delay(WL_CONNECT_TRY_TIME);
       ++attempts;
-    }
+    } 
 
     if(WiFi.status() == WL_CONNECTED){
       PROGRAM_STATE = WLAN_CONNECT_SUCCESS;
@@ -234,8 +238,7 @@ void goToSleep(int ms){
   
   Serial.println("Krooh pyyh");
 
-  i2c_CO2_wakeup(); //Herätetään I2C anturi
-  WiFi.setSleep(false); //Wifi pois nukkumistilasta
+
 }
 
 void disableWifi(){
@@ -310,7 +313,6 @@ void i2c_CO2_wakeup(){ //CO2 Herättäminen i2c yli
     Wire.beginTransmission(co2_addr);
     Wire.endTransmission();
     Wire.requestFrom(co2_addr,7,true);
-    initializei2c_CO2(); //Asetetaan anturin asetukset
 }
 
 void loop() {
