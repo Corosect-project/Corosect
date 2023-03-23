@@ -179,25 +179,34 @@ void connectWifi(){
     WiFi.begin(ssid,pass);
     Serial.print("Aloitetaan yhteys");
     Serial.println((String)"Wifin tila" + WiFi.status());
-    int attempts = 0;
-    while(WiFi.status() != WL_CONNECTED){
-      if(attempts >= WL_MAX_ATTEMPTS){ 
-        PROGRAM_STATE = WLAN_CONNECT_ERROR;
-        break;
-      }
-      Serial.print(".");
-      delay(WL_CONNECT_TRY_TIME);
-      ++attempts;
-    } 
+    
 
     if(WiFi.status() == WL_CONNECTED){
       PROGRAM_STATE = WLAN_CONNECT_SUCCESS;
       Serial.println("Yhdistettiin!");
     }else{
+      int attempts = 0;
+      while(WiFi.status() != WL_CONNECTED){ //Koitetaan uudestaan yhdistää jos yhteys ei ole aluksi muodostettu
+        if(attempts >= WL_MAX_ATTEMPTS){ 
+          PROGRAM_STATE = WLAN_CONNECT_ERROR;
+          break;
+        }
+        Serial.print(".");
+        delay(WL_CONNECT_TRY_TIME);
+        ++attempts;
+      }
+
+      if(WiFi.status() == WL_CONNECTED){ //Jos kuitenkin onnistutaan yhdistämään
+        PROGRAM_STATE = WLAN_CONNECT_SUCCESS;
+        Serial.println("Yhdistettiin!");
+        break;
+      }
+
       PROGRAM_STATE = WLAN_CONNECT_ERROR;
       Serial.println(String("Ei yhdistetty ") + WiFi.status());
     }
-  
+
+    
   
 }
 
