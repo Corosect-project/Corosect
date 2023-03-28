@@ -20,6 +20,8 @@ esp_err_t i2c_master_init(void);
  */
 esp_err_t i2c_write(uint8_t addr, uint8_t cmdh, uint8_t cmdl);
 
+esp_err_t i2c_write_cmd(uint8_t addr, uint8_t *data, size_t len);
+
 /* Write 16 bit command with 16 bit arg to I2C slave
  * addr: slave address
  * cmdh: MSB of command

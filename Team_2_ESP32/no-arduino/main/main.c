@@ -50,7 +50,8 @@ void go_to_sleep(int ms){
 }
 
 static inline esp_err_t disable_crc(){
-    esp_err_t ret = i2c_write(I2C_CO2_ADDR, 0x37, 0x68);
+    uint8_t cmd[2] = {0x37, 0x68};
+    esp_err_t ret = i2c_write_cmd(I2C_CO2_ADDR, cmd, sizeof(cmd));
     return ret;
 }
 

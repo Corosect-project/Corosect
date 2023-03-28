@@ -98,8 +98,8 @@ esp_err_t i2c_wakeup_sensor(uint8_t addr){
 
 /* 
  * Improved i2c write function, work in progress
- *
-static esp_err_t i2c_write_cmd(uint8_t addr, const uint8_t *data, size_t len){
+ **/
+esp_err_t i2c_write_cmd(uint8_t addr, uint8_t *data, size_t len){
     esp_err_t ret;
     i2c_cmd_handle_t cmd = i2c_cmd_link_create();
     i2c_master_start(cmd);
@@ -110,7 +110,7 @@ static esp_err_t i2c_write_cmd(uint8_t addr, const uint8_t *data, size_t len){
     i2c_cmd_link_delete(cmd);
 
     return ret;
-}*/
+}
 
 esp_err_t i2c_read(uint8_t addr, uint8_t *data, size_t len){
     esp_err_t ret;

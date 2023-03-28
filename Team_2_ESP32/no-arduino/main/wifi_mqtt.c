@@ -173,12 +173,17 @@ esp_err_t mqtt_app_start()
 }
 
 void mqtt_send_result(uint16_t val, char *topic){
-    /*TODO: Replace this with a static buffer at some point */
-    int len = snprintf(NULL,0,"%d",val); 
-    char* sResult = (char*)malloc((len+1)*sizeof(char));
-    snprintf(sResult, len+1, "%d", val);
+    /* Since we're working with 16 bit values
+     * the maximum character count can't exceed 5 
+     * so a 5 character buffer is enough to hold our results */
+    char sResult[6];
+    snprintf(sResult, 6, "%d", val);
 
-    esp_mqtt_client_publish(client, topic, sResult, len, 0, 0);
+    /* setting len to 0 here calculates length from payload 
+     * this may be slightly less efficient than using a constant of 6
+     * but using a constant seems to sometimes result in garbled output
+     * so it's probably better to leave it like this */
+    esp_mqtt_client_publish(client, topic, sResult, 0, 0, 0); /* client, topic, data, len, qos, retain*/
 }
 
 
