@@ -19,6 +19,9 @@
 #define ESP_WIFI_PASS   CONFIG_WIFI_PASSWORD 
 #define ESP_MAX_RETRY   CONFIG_WIFI_RETRY_MAX
 
+#define MQTT_TIMEOUT    CONFIG_MQTT_TIMEOUT
+#define MQTT_MAX_RETRY  CONFIG_MQTT_MAX_RETRY
+
 
 #if CONFIG_WIFI_ALL_CHANNEL_SCAN
 #define WIFI_SCAN_METHOD WIFI_ALL_CHANNEL_SCAN
@@ -34,14 +37,18 @@
 
 
 static EventGroupHandle_t s_wifi_event_group;
+static EventGroupHandle_t s_mqtt_event_group;
 
 #define WIFI_CONNECTED_BIT  BIT0
 #define WIFI_FAIL_BIT       BIT1
 
+#define MQTT_CONNECTED_BIT  BIT0
+#define MQTT_FAIL_BIT       BIT1
+
 static const char *TAG = "wifi";
 static const char *MQTT_TAG = "MQTT";
 static int s_retry_num = 0;
-static int mqtt_retry = 0;
+static int s_mqtt_retry = 0;
 
 static esp_mqtt_client_handle_t client;
 
@@ -61,9 +68,8 @@ static void mqtt_event_handler(void *handler_args, esp_event_base_t base, int32_
     switch((esp_mqtt_event_id_t)event_id){
         case MQTT_EVENT_CONNECTED:
             ESP_LOGI(MQTT_TAG,"MQTT_EVENT_CONNECTED");
-            mqtt_retry = 0;
-/*            msg_id = esp_mqtt_client_publish(client, "/topic/qos1", "dataa tulee", 0, 1, 0);
-            ESP_LOGI(MQTT_TAG, "sent publish succesful, msg_id=%d", msg_id);*/
+            xEventGroupSetBits(s_mqtt_event_group, MQTT_CONNECTED_BIT);
+            s_mqtt_retry = 0;
             break;
         case MQTT_EVENT_DISCONNECTED:
             ESP_LOGI(MQTT_TAG,"MQTT_EVENT_DISCONNECTED");
@@ -89,24 +95,26 @@ static void mqtt_event_handler(void *handler_args, esp_event_base_t base, int32_
                 log_error_if_nonzero("reported from tls stack", event->error_handle->esp_tls_stack_err);
                 log_error_if_nonzero("captured as transport's socket errno",event->error_handle->esp_transport_sock_errno);
                 ESP_LOGI(MQTT_TAG,"Last errno string (%s)",strerror(event->error_handle->esp_transport_sock_errno));
-                /* esp-tls 0x8006 ESP_ERR_ESP_TLS_CONNECTION_TIMEOUT 
-                 * TCP connection timeout 
-                if(event->error_handle->esp_tls_last_esp_err == 0x8006){
-                    if(mqtt_retry < 3){
-                        ESP_LOGE(MQTT_TAG,"Got TCP timeout error, trying again");
-                        mqtt_app_start();
-                        ++mqtt_retry;
-                    }else{
-                        ESP_LOGE(MQTT_TAG,"Got TCP timeout error, tried max");
-                    }*/
 
+                /* esp-tls 0x8006 ESP_ERR_ESP_TLS_CONNECTION_TIMEOUT */
+                if(event->error_handle->esp_tls_last_esp_err == 0x8006){
+                    if(s_mqtt_retry < MQTT_MAX_RETRY){
+                        ESP_LOGI(MQTT_TAG,"TLS timeout error, trying again");
+                        esp_mqtt_client_start(client);
+                        ++s_mqtt_retry;
+                    }else{
+                        ESP_LOGI(MQTT_TAG,"TLS timeout error, tried max");
+                        xEventGroupSetBits(s_mqtt_event_group, MQTT_FAIL_BIT);
+                    }
+                }else{
+                        xEventGroupSetBits(s_mqtt_event_group, MQTT_FAIL_BIT);
                 }
             break;
-
         default:
             ESP_LOGI(MQTT_TAG,"other event id:%d",event->event_id);
             break;
     }
+}
 }
 
 
@@ -133,15 +141,35 @@ static void event_handler(void *arg, esp_event_base_t event_base,
 }
 
 
-void mqtt_app_start()
+esp_err_t mqtt_app_start()
 {
+
+    s_mqtt_event_group = xEventGroupCreate();
+
     esp_mqtt_client_config_t mqtt_cfg = {
         .broker.address.uri = MQTT_BROKER,
+        .network.reconnect_timeout_ms = MQTT_TIMEOUT,
+        .network.timeout_ms = MQTT_TIMEOUT,
     };
 
     client = esp_mqtt_client_init(&mqtt_cfg);
     esp_mqtt_client_register_event(client, ESP_EVENT_ANY_ID, mqtt_event_handler, NULL);
     esp_mqtt_client_start(client);
+
+    EventBits_t bits = xEventGroupWaitBits(s_mqtt_event_group, MQTT_CONNECTED_BIT | MQTT_FAIL_BIT, pdFALSE,pdFALSE, portMAX_DELAY);
+
+    if(bits & MQTT_CONNECTED_BIT){
+        ESP_LOGI(MQTT_TAG,"Succesfully connected MQTT");
+        return 0;
+    }else if(bits & MQTT_FAIL_BIT){
+        ESP_LOGI(MQTT_TAG,"MQTT connection failed");
+        return -1;
+    }else{
+        ESP_LOGE(MQTT_TAG,"Error in MQTT connection");
+        return -1;
+    }
+
+
 }
 
 void mqtt_send_result(uint16_t val, char *topic){

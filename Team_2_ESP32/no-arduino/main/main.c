@@ -36,9 +36,18 @@
 
 static const char* TAG = "espi";
 
+void go_to_sleep(int ms){
+    gpio_set_level(SENSOR_POWER_GPIO,0); /* Disable power output for CO2 sensor */
 
-/* MQTT client used to send messages  
-esp_mqtt_client_handle_t mqtt_client;*/
+    /* esp_sleep_pd_config results in an assertion error so explicitly disable all wakeup sources
+     * this _should_ ensure that ESP_PD_OPTION_AUTO powers down all unnecessary domains 
+     * FIXME: missing something obvious with esp_sleep_pd_config so this is a hacky solution*/
+    esp_sleep_disable_wakeup_source(ESP_SLEEP_WAKEUP_ALL);
+
+    /* enable wakeup sources here */
+    esp_sleep_enable_timer_wakeup(ms*1000);
+    esp_deep_sleep_start();
+}
 
 static inline esp_err_t disable_crc(){
     esp_err_t ret = i2c_write(I2C_CO2_ADDR, 0x37, 0x68);
@@ -76,21 +85,6 @@ static esp_err_t measure_gas(uint8_t *data){
     return ret;
 }
 
-
-/* Send sleep command 0x3677 to sensor*/
-static inline esp_err_t sensor_sleep(){
-    esp_err_t ret = i2c_write(I2C_CO2_ADDR, 0x36, 0x77);
-    return ret;
-}
-
-static inline esp_err_t sensor_wake(){
-    esp_err_t ret = i2c_wakeup_sensor(I2C_CO2_ADDR);
-    /* Sensor needs time to wake up, 50ms seems reliable */
-    vTaskDelay(50 / portTICK_PERIOD_MS); 
-    return ret;
-
-}
-
 static void inline configure_pins(){
     /* TODO: working LED everything */
     // const uint32_t led_pin = 1 << LED_GPIO;
@@ -122,34 +116,25 @@ void initialize_i2c(){
     puts("i2c init");
     printf("driver install %s\n",esp_err_to_name(test));
 
-    test = sensor_wake();
-    printf("sensor wake %s\n",esp_err_to_name(test));
-
+    /* We won't be error checking at this point
+     * so disable CRC to reduce transmission overhead */
     test = disable_crc();
     printf("disable crc %s\n",esp_err_to_name(test));
 
+    /* Setting binary gas to CO2 in air 0-100% 
+     * TODO: add enum and config for choosing between different available options */
     test = set_binary_gas();
     printf("set binary gas %s\n\n",esp_err_to_name(test));
 
     test = self_test(data);
-    if((data[0] << 8 | data[1]) != 0){ ESP_LOGE(TAG,"Sensor selftest failure");};
-    printf("selftest sent %s\n",esp_err_to_name(test));
+    if((data[0] << 8 | data[1]) != 0){ 
+        ESP_LOGE(TAG,"Sensor selftest failure"); 
+        go_to_sleep(ERR_SLEEP_MS);
+    }
     printf("selftest result: %d %d\n",data[0], data[1]);
 }
 
 
-void go_to_sleep(int ms){
-    sensor_sleep();
-    gpio_set_level(SENSOR_POWER_GPIO,0); /* Power output for CO2 sensor */
-
-    /* esp_sleep_pd_config results in an assertion error so explicitly disable all wakeup sources
-     * this _should_ ensure that ESP_PD_OPTION_AUTO powers down all unnecessary domains */
-    esp_sleep_disable_wakeup_source(ESP_SLEEP_WAKEUP_ALL);
-
-    /* enable wakeup sources here */
-    esp_sleep_enable_timer_wakeup(ms*1000);
-    esp_deep_sleep_start();
-}
 
 void app_main(void){
     uint8_t data[4]={0};
@@ -158,6 +143,8 @@ void app_main(void){
     int test;
 
     configure_pins();
+    /* enable power output here so sensor has time to run through boot 
+     * this can be moved later in the sequence if the ~3mA saved during WiFi/MQTT setup is worth it and doesn't require wait later on */
     gpio_set_level(SENSOR_POWER_GPIO,1); /* Power output for CO2 sensor */
 
     nvs_flash_init();
@@ -170,13 +157,19 @@ void app_main(void){
     }
 
     ESP_LOGI(TAG,"Got wifi connection, starting MQTT");
-    mqtt_app_start();
-    initialize_i2c();
-    test = measure_gas(data);
-    printf("Measure: %s\n",esp_err_to_name(test));
-    printf("co2 Data: %d\n",(data[0]<<8|data[1]));
-    printf("temp data: %d\n\n",(data[2]<<8|data[3]));
 
+    test = mqtt_app_start();
+    /* mqtt_app_start will also return 0 on success
+     * otherwise connecting failed */
+    if(test != 0){
+        ESP_LOGI(TAG,"MQTT connection failed, sleeping");
+        go_to_sleep(ERR_SLEEP_MS);
+    }
+
+    ESP_LOGI(TAG,"Got mqtt connection, starting I2C");
+
+    /* Succesfully connected to WiFi and MQTT, time to start measuring */
+    initialize_i2c();
 
     while(1){
         for(int i = 0; i < SAMPLES; i++){
@@ -192,7 +185,6 @@ void app_main(void){
 
         ESP_LOGI(TAG,"Measured, going to sleep");
         go_to_sleep(SLEEP_MS);
-
 
     }
 }

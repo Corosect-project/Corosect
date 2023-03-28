@@ -70,7 +70,19 @@ menu "Corosect project configuration"
             default ""
             help
                 URI for the MQTT broker to connect to.
-                Note: needs to be in the form of mqtt://broker.address.here
+                Note: needs to be in the form of mqtt://broker.address.here:port
+
+        config MQTT_TIMEOUT
+            int "MQTT timeout (ms)"
+            default "5000"
+            help
+                Timeout for MQTT connection.
+
+        config MQTT_MAX_RETRY
+            int "MQTT Maximum retry"
+            default "3"
+            help
+                Maximum number of retries for mqtt connection.
     endmenu
 
     config SAMPLES
