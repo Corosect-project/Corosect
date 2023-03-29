@@ -21,7 +21,8 @@
 /* RTC maximum SCL frequency is 1MHz */
 #define I2C_MASTER_FREQ_HZ CONFIG_I2C_MASTER_FREQ
 
-static const char* TAG = "esp_i2c";
+/* Tag for debugging */
+/*static const char* TAG = "esp_i2c";*/
 
 esp_err_t i2c_master_init(void){
     int i2c_master_port = I2C_NUM_0;
@@ -46,60 +47,7 @@ esp_err_t i2c_master_init(void){
 
 }
 
-/* Write 16 bit command to i2c slave 
- * TODO: ugly solution. Make into a generic write function that can handle n length commands and args*/
-esp_err_t i2c_write(uint8_t addr, uint8_t cmdh, uint8_t cmdl){
-    esp_err_t ret;
-    i2c_cmd_handle_t cmd = i2c_cmd_link_create(); 
-    i2c_master_start(cmd);
-    i2c_master_write_byte(cmd, addr<<1 | 0x0, 0x1);
-    i2c_master_write_byte(cmd, cmdh, 0x1);
-    i2c_master_write_byte(cmd, cmdl, 0x1);
-    i2c_master_stop(cmd);
-    ret = i2c_master_cmd_begin(0, cmd, 1000/portTICK_PERIOD_MS);
-//    ESP_LOGI(TAG, "Wrote command, response %s",esp_err_to_name(ret));
-    i2c_cmd_link_delete(cmd);
-
-    return ret;
-}
-
-/* Write 16 bit command to i2c slave with 16 bit argument
- * TODO: ugly solution. Make into a generic write function that can handle n length commands and args*/
-esp_err_t i2c_write_with_arg(uint8_t addr, uint8_t cmdh, uint8_t cmdl, uint8_t argh, uint8_t argl){
-    esp_err_t ret;
-    i2c_cmd_handle_t cmd = i2c_cmd_link_create(); 
-    i2c_master_start(cmd);
-    i2c_master_write_byte(cmd, addr<<1 | 0x0, 0x1);
-    i2c_master_write_byte(cmd, cmdh, 0x1);
-    i2c_master_write_byte(cmd, cmdl, 0x1);
-    i2c_master_write_byte(cmd, argh, 0x1);
-    i2c_master_write_byte(cmd, argl, 0x1);
-    i2c_master_stop(cmd);
-    ret = i2c_master_cmd_begin(0, cmd, 1000/portTICK_PERIOD_MS);
-    i2c_cmd_link_delete(cmd);
-
-    return ret;
-
-}
-
-/* Sends wakeup command (address + write bit) to given slave */
-esp_err_t i2c_wakeup_sensor(uint8_t addr){
-    esp_err_t ret;
-    i2c_cmd_handle_t cmd = i2c_cmd_link_create();
-    i2c_master_start(cmd);
-    i2c_master_write_byte(cmd, addr << 1 | 0x0, 0x0);
-    i2c_master_stop(cmd);
-    ret = i2c_master_cmd_begin(0,cmd,1000/portTICK_PERIOD_MS);
-    i2c_cmd_link_delete(cmd);
-    
-    return ret;
-
-}
-
-/* 
- * Improved i2c write function, work in progress
- **/
-esp_err_t i2c_write_cmd(uint8_t addr, uint8_t *data, size_t len){
+esp_err_t i2c_write_cmd(uint8_t addr, const uint8_t *data, size_t len){
     esp_err_t ret;
     i2c_cmd_handle_t cmd = i2c_cmd_link_create();
     i2c_master_start(cmd);

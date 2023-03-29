@@ -50,13 +50,14 @@ void go_to_sleep(int ms){
 }
 
 static inline esp_err_t disable_crc(){
-    uint8_t cmd[2] = {0x37, 0x68};
+    const uint8_t cmd[2] = {0x37, 0x68};
     esp_err_t ret = i2c_write_cmd(I2C_CO2_ADDR, cmd, sizeof(cmd));
     return ret;
 }
 
 static inline esp_err_t self_test(uint8_t *data){
-    esp_err_t ret = i2c_write(I2C_CO2_ADDR, 0x36, 0x5B); /* 0x365B run self test */
+    const uint8_t cmd[2] = {0x36,0x5B};
+    esp_err_t ret = i2c_write_cmd(I2C_CO2_ADDR, cmd, sizeof(cmd));
     if(ret != ESP_OK) return ret;
 
     /* Self-test guaranteed to take <20ms */
@@ -65,17 +66,22 @@ static inline esp_err_t self_test(uint8_t *data){
     return ret;
 }
 
-/* Sets binary gas to co2 in air 0 to 100 vol%*/
 static inline esp_err_t set_binary_gas(){
-    esp_err_t ret;
-    ret = i2c_write_with_arg(I2C_CO2_ADDR, 0x36, 0x15, 0x00, 0x01);
+    /* 0x3615 set binary gas to 0x0001 co2 in air 0-100%  */
+    const uint8_t cmd[4] = {0x36, 0x15, 
+                            /* args*/
+                            0x00, 0x01};
+    esp_err_t ret = i2c_write_cmd(I2C_CO2_ADDR, cmd, sizeof(cmd));
     return ret;
 
 }
 
 /* Measure gas and temperature */
 static esp_err_t measure_gas(uint8_t *data){
-    esp_err_t ret = i2c_write(I2C_CO2_ADDR, 0x36 ,0x39);
+    /* 0x3639 measure gas concentration */
+    const uint8_t cmd[2] = {0x36,0x39};
+    esp_err_t ret = i2c_write_cmd(I2C_CO2_ADDR, cmd ,sizeof(cmd));
+
     if(ret != ESP_OK) return ret;
 
     /* Measurement should take at most 66ms */
@@ -179,7 +185,7 @@ void app_main(void){
             temp_result = data[2] << 8 | data[3];
             mqtt_send_result(co2_result, "co2");
             mqtt_send_result(temp_result, "temp");
-            printf("co2: %d \t temp: %d\n",(data[0]<<8|data[1]), (data[2]<<8|data[3]));
+            printf("co2: %d \t temp: %d\n",co2_result, temp_result);
             /* Measure should only be called once every second */
             vTaskDelay(MEASURE_INTERVAL / portTICK_PERIOD_MS);
         }
