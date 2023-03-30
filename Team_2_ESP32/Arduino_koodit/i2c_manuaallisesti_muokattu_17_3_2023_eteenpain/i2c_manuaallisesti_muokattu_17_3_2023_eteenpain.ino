@@ -73,12 +73,11 @@ void setup() {
 
   client.setServer(broker,port); //MQTT asetukset
   
-  //Serial.println("Syy herätyksell: "+(String)esp_sleep_get_wakeup_cause());
+  //Serial.println("Syy herätyksella: "+(String)esp_sleep_get_wakeup_cause());
 
   if(esp_sleep_get_wakeup_cause() != 0){ //Jos koodi käynnistyy unitilasta niin herätetään CO2 sensori
     i2c_CO2_wakeup(); //Herätetään I2C anturi
   }
-  
 
   initializei2c_CO2(); //Alustetaan asetukset sensorille i2c:n yli
   
