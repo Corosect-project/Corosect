@@ -11,25 +11,18 @@
  * returns 0 on succes */
 esp_err_t i2c_master_init(void);
 
-/* Write 16 bit command to I2C slave
+/* Write len byte command to I2C slave
  * addr: slave address
- * cmdh: MSB of command
- * cmdl: LSB of command 
+ * data: command and arguments to be written
+ *
+ * data should be an array of commands and related arguments to write
+ * supports writing 8 bit and 16 bit long commands
+ * with 8 bit and 16 bit long arguments
  *
  * returns 0 on success
  */
-esp_err_t i2c_write(uint8_t addr, uint8_t cmdh, uint8_t cmdl);
+esp_err_t i2c_write_cmd(uint8_t addr, const uint8_t *data, size_t len);
 
-/* Write 16 bit command with 16 bit arg to I2C slave
- * addr: slave address
- * cmdh: MSB of command
- * cmdl: LSB of command 
- * argh: MSB of arg
- * argl: LSB of arg
- *
- * returns 0 on success
- */
-esp_err_t i2c_write_with_arg(uint8_t addr, uint8_t cmdh, uint8_t cmdl, uint8_t argh, uint8_t argl);
 
 /* Read len bytes from I2C slave
  * addr: slave address
@@ -39,5 +32,6 @@ esp_err_t i2c_write_with_arg(uint8_t addr, uint8_t cmdh, uint8_t cmdl, uint8_t a
  * returns 0 on success
  */
 esp_err_t i2c_read(uint8_t addr, uint8_t *data, size_t len);
+
 
 #endif // _ESP32_I2C_H
