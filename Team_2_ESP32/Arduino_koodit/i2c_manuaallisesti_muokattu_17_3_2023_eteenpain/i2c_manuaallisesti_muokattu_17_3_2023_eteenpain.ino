@@ -73,8 +73,12 @@ void setup() {
 
   client.setServer(broker,port); //MQTT asetukset
   
+  //Serial.println("Syy herätyksell: "+(String)esp_sleep_get_wakeup_cause());
+
+  if(esp_sleep_get_wakeup_cause() != 0){ //Jos koodi käynnistyy unitilasta niin herätetään CO2 sensori
+    i2c_CO2_wakeup(); //Herätetään I2C anturi
+  }
   
-  i2c_CO2_wakeup(); //Herätetään I2C anturi
 
   initializei2c_CO2(); //Alustetaan asetukset sensorille i2c:n yli
   
@@ -185,6 +189,7 @@ void connectWifi(){
       PROGRAM_STATE = WLAN_CONNECT_SUCCESS;
       Serial.println("Yhdistettiin!");
     }else{
+
       int attempts = 0;
       while(WiFi.status() != WL_CONNECTED){ //Koitetaan uudestaan yhdistää jos yhteys ei ole aluksi muodostettu
         if(attempts >= WL_MAX_ATTEMPTS){ 
@@ -199,11 +204,12 @@ void connectWifi(){
       if(WiFi.status() == WL_CONNECTED){ //Jos kuitenkin onnistutaan yhdistämään
         PROGRAM_STATE = WLAN_CONNECT_SUCCESS;
         Serial.println("Yhdistettiin!");
-        break;
+      }else{
+        PROGRAM_STATE = WLAN_CONNECT_ERROR;
+        Serial.println(String("Ei yhdistetty ") + WiFi.status());
       }
 
-      PROGRAM_STATE = WLAN_CONNECT_ERROR;
-      Serial.println(String("Ei yhdistetty ") + WiFi.status());
+      
     }
 
     
@@ -234,7 +240,6 @@ void connectMQTT(){
     Serial.println("mqtt yhteys epäonnistui");
     goToSleep(1000);
   }
-  
 }
 
 void goToSleep(int ms){
@@ -322,6 +327,7 @@ void i2c_CO2_wakeup(){ //CO2 Herättäminen i2c yli
     Wire.beginTransmission(co2_addr);
     Wire.endTransmission();
     Wire.requestFrom(co2_addr,7,true);
+    delay(30);
 }
 
 void loop() {
