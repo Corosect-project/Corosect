@@ -15,14 +15,15 @@
 #include "lwip/dns.h"
 #include "mqtt_client.h"
 
+/* WiFi settings */
 #define ESP_WIFI_SSID   CONFIG_WIFI_SSID
 #define ESP_WIFI_PASS   CONFIG_WIFI_PASSWORD 
 #define ESP_MAX_RETRY   CONFIG_WIFI_RETRY_MAX
 
-#define MQTT_TIMEOUT    CONFIG_MQTT_TIMEOUT
-#define MQTT_MAX_RETRY  CONFIG_MQTT_MAX_RETRY
+/* Network scan threshold (unused as of now)
+#define ESP_WIFI_SCAN_AUTH_MODE_THRESHOLD WIFI_AUTH_OPEN*/
 
-
+/* WiFi Channel scan settings */
 #if CONFIG_WIFI_ALL_CHANNEL_SCAN
 #define WIFI_SCAN_METHOD WIFI_ALL_CHANNEL_SCAN
 #elif CONFIG_WIFI_FAST_SCAN
@@ -31,10 +32,10 @@
 #define WIFI_SCAN_METHOD WIFI_FAST_SCAN
 #endif /* CONFIG_WIFI_SCAN_METHOD */
 
+/* MQTT connection settings */
+#define MQTT_TIMEOUT    CONFIG_MQTT_TIMEOUT
+#define MQTT_MAX_RETRY  CONFIG_MQTT_MAX_RETRY
 #define MQTT_BROKER     CONFIG_MQTT_BROKER
-
-#define ESP_WIFI_SCAN_AUTH_MODE_THRESHOLD WIFI_AUTH_OPEN
-
 
 static EventGroupHandle_t s_wifi_event_group;
 static EventGroupHandle_t s_mqtt_event_group;
@@ -179,10 +180,7 @@ void mqtt_send_result(uint16_t val, char *topic){
     char sResult[6];
     snprintf(sResult, 6, "%d", val);
 
-    /* setting len to 0 here calculates length from payload 
-     * this may be slightly less efficient than using a constant of 6
-     * but using a constant seems to sometimes result in garbled output
-     * so it's probably better to leave it like this */
+    /* setting len to 0 here calculates length from payload */
     esp_mqtt_client_publish(client, topic, sResult, 0, 0, 0); /* client, topic, data, len, qos, retain*/
 }
 

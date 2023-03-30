@@ -13,8 +13,11 @@
 #include "sdkconfig.h"
 #include "esp_sleep.h"
 
+/* Following macros can be set via `idf.py menuconfig` (recommended)
+ * or directly here in the source file */
+
 /* Set SDA and SCL pins to configured ones, by default 6 & 7
- * Default pins 8 & 9 incompatible with internal LED pin */
+ * Default ESP32C3 pins 8 & 9 incompatible with internal LED pin 8 */
 #define I2C_MASTER_SDA_IO CONFIG_I2C_MASTER_SDA
 #define I2C_MASTER_SCL_IO CONFIG_I2C_MASTER_SCL
 
