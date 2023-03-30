@@ -159,7 +159,7 @@ void app_main(void){
     /* wifi_init_sta() will return 0 on success
      * otherwise connecting failed */
     if(test != 0){
-        ESP_LOGI(TAG,"Wifi connection failed, sleeping");
+        ESP_LOGE(TAG,"Wifi connection failed, sleeping");
         go_to_sleep(ERR_SLEEP_MS);
     }
 
@@ -169,7 +169,7 @@ void app_main(void){
     /* mqtt_app_start will also return 0 on success
      * otherwise connecting failed */
     if(test != 0){
-        ESP_LOGI(TAG,"MQTT connection failed, sleeping");
+        ESP_LOGE(TAG,"MQTT connection failed, sleeping");
         go_to_sleep(ERR_SLEEP_MS);
     }
 
