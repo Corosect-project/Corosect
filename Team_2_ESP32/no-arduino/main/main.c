@@ -14,6 +14,10 @@
 #include "esp32_i2c.h"
 #include "wifi_mqtt.h"
 
+/* The following macros can be set either via `idf.py menuconfig` (recommended)
+ * or directly here in the source file */
+
+/* Pin configuration */
 #define LED_GPIO CONFIG_LED_GPIO
 #define SENSOR_POWER_GPIO CONFIG_SENSOR_POWER_GPIO
 
@@ -50,12 +54,14 @@ void go_to_sleep(int ms){
 }
 
 static inline esp_err_t disable_crc(){
+    /* 0x3768 disable crc */
     const uint8_t cmd[2] = {0x37, 0x68};
     esp_err_t ret = i2c_write_cmd(I2C_CO2_ADDR, cmd, sizeof(cmd));
     return ret;
 }
 
 static inline esp_err_t self_test(uint8_t *data){
+    /* 0x365B run sensor selftest */
     const uint8_t cmd[2] = {0x36,0x5B};
     esp_err_t ret = i2c_write_cmd(I2C_CO2_ADDR, cmd, sizeof(cmd));
     if(ret != ESP_OK) return ret;
@@ -100,8 +106,8 @@ static void inline configure_pins(){
     /* Create bit mask for CO2 sensor power pin */
     const uint32_t power_pin = 1 << SENSOR_POWER_GPIO;
 
-    /* For now we just need to enable output on 1 pin
-     * this can be expanded to include more */
+    /* For now we just need to enable output on a single pin
+     * this can later be expanded to include more */
     const uint32_t pins_mask = power_pin;
 
     gpio_config_t conf ={
@@ -117,13 +123,15 @@ static void inline configure_pins(){
 }
 
 void initialize_i2c(){
-    uint8_t data[2]={-1};
+    /* A good result will be 0 so initialize 
+     * to a known bad value here */
+    uint8_t data[2]={255,255};
 
     int test = i2c_master_init();
     puts("i2c init");
     printf("driver install %s\n",esp_err_to_name(test));
 
-    /* We won't be error checking at this point
+    /* We won't be needing error checking in this project
      * so disable CRC to reduce transmission overhead */
     test = disable_crc();
     printf("disable crc %s\n",esp_err_to_name(test));
@@ -134,11 +142,11 @@ void initialize_i2c(){
     printf("set binary gas %s\n\n",esp_err_to_name(test));
 
     test = self_test(data);
-    if((data[0] << 8 | data[1]) != 0){ 
+    if(((data[0] << 8) | data[1]) != 0){ 
         ESP_LOGE(TAG,"Sensor selftest failure"); 
         go_to_sleep(ERR_SLEEP_MS);
     }
-    printf("selftest result: %d %d\n",data[0], data[1]);
+    printf("selftest result: %d%d\n",data[0], data[1]);
 }
 
 
@@ -154,7 +162,10 @@ void app_main(void){
      * this can be moved later in the sequence if the ~3mA saved during WiFi/MQTT setup is worth it and doesn't require wait later on */
     gpio_set_level(SENSOR_POWER_GPIO,1); /* Power output for CO2 sensor */
 
+    /* TODO: this can error out
+     * needs error checking but this works for now */
     nvs_flash_init();
+
     test = wifi_init_sta();
     /* wifi_init_sta() will return 0 on success
      * otherwise connecting failed */
@@ -175,7 +186,8 @@ void app_main(void){
 
     ESP_LOGI(TAG,"Got mqtt connection, starting I2C");
 
-    /* Succesfully connected to WiFi and MQTT, time to start measuring */
+    /* Succesfully connected to WiFi and MQTT, time to start measuring.
+     * Will automatically sleep if an error occurs during sensor selftest */
     initialize_i2c();
 
     while(1){
@@ -185,7 +197,7 @@ void app_main(void){
             temp_result = data[2] << 8 | data[3];
             mqtt_send_result(co2_result, "co2");
             mqtt_send_result(temp_result, "temp");
-            printf("co2: %d \t temp: %d\n",co2_result, temp_result);
+            printf("co2: %u\t temp: %u\n",co2_result, temp_result);
             /* Measure should only be called once every second */
             vTaskDelay(MEASURE_INTERVAL / portTICK_PERIOD_MS);
         }
