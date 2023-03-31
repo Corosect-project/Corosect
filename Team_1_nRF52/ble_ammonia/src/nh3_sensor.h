@@ -1,7 +1,6 @@
 #ifndef BE821905_0997_4832_BD03_42B95D20393B
 #define BE821905_0997_4832_BD03_42B95D20393B
 
-#include <nrf52.h>
 #include <nrfx_spim.h>
 
 #define CS_PIN 27

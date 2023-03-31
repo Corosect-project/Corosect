@@ -7,5 +7,5 @@ project(hello_world)
 
 target_sources(app PRIVATE src/main.c)
 target_sources(app PRIVATE src/config.c)
-target_sources(app PRIVATE src/nh3_sensor.c)
+# target_sources(app PRIVATE src/nh3_sensor.c)
 target_sources(app PRIVATE src/mqtt.c)

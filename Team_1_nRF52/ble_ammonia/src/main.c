@@ -5,16 +5,17 @@
  */
 
 #include <dk_buttons_and_leds.h>
-#include <nrf52.h>
 #include <nrfx_spim.h>
 #include <zephyr/bluetooth/bluetooth.h>
 #include <zephyr/bluetooth/conn.h>
+#include <zephyr/bluetooth/l2cap.h>
 #include <zephyr/bluetooth/uuid.h>
 #include <zephyr/kernel.h>
 #include <zephyr/logging/log.h>
 #include <zephyr/net/mqtt.h>
 #include <zephyr/net/net_config.h>
-#include <zephyr/net/socket.h>
+// #include <zephyr/net/socket.h>
+
 LOG_MODULE_REGISTER(app, LOG_LEVEL_DBG);
 
 #include "config.h"
@@ -82,25 +83,25 @@ void main(void) {
   struct sockaddr peer;
   init_sockaddresses(&addr, &peer);
 
-  int sock = zsock_socket(AF_INET6, SOCK_STREAM, IPPROTO_TCP);
+  int sock = zsock_socket(AF_INET6, SOCK_DGRAM, IPPROTO_UDP);
   if (ERROR(sock)) LOG_ERR("%d, err: %d", sock, errno);
 
   uint8_t buffer[256] = {0};
-  struct zsock_pollfd tcpfds[1];
-  tcpfds[0].events = ZSOCK_POLLIN;
-  tcpfds[0].fd = sock;
-  tcpfds[0].revents = 0;
+  struct zsock_pollfd udpfds[1];
+  udpfds[0].events = ZSOCK_POLLIN;
+  udpfds[0].fd = sock;
+  udpfds[0].revents = 0;
 
   zsock_connect(sock, &peer, sizeof(peer));
-  zsock_send(sock, "Kusi mutteri", sizeof("Kusi mutteri"), 0);
+  zsock_send(sock, "Hello from Zephyr", sizeof("Hello from Zephyr") - 1, 0);
 
   while (true) {
-    err = zsock_poll(tcpfds, 1, 10000);
+    err = zsock_poll(udpfds, 1, 10000);
     if (ERROR(err)) {
       LOG_ERR("Poll error, %d", errno);
       break;
     } else if (err > 0) {
-      if (tcpfds[0].revents & ZSOCK_POLLIN) {
+      if (udpfds[0].revents & ZSOCK_POLLIN) {
         ssize_t received = zsock_recv(sock, buffer, 256, 0);
         if (received == 0) {
           LOG_DBG("Connection closed");
@@ -113,11 +114,11 @@ void main(void) {
       }
     } else {
       LOG_DBG("Poll timedout");
-      LOG_DBG("revent, %d", tcpfds[0].revents);
+      LOG_DBG("revent, %d", udpfds[0].revents);
     }
   }
   err = zsock_close(sock);
-  if (ERROR(err)) LOG_ERR("Socket clsoe error, %d", errno);
+  if (ERROR(err)) LOG_ERR("Socket close error, %d", errno);
 
   sock = zsock_socket(AF_INET6, SOCK_STREAM, IPPROTO_TCP);
   LOG_ERR("%d, err: %d", sock, errno);
@@ -223,7 +224,8 @@ void bt_connected(struct bt_conn *conn, uint8_t err) {
     LOG_ERR("Connection failed, %d", err);
   } else {
     LOG_INF("Connected");
-    // init_network();
+    // k_sleep(K_SECONDS(1));
+    // init_network(ZEPHYR_ADDR);
   }
 }
 
