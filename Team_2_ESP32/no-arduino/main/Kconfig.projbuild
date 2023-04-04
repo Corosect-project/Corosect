@@ -115,10 +115,11 @@ menu "Corosect project configuration"
             GPIO for CO2 sensor power.
 
     config LED_GPIO
-        int "LED GPIO num (WORK IN PROGRESS)"
+        int "LED GPIO num"
         default 8
         help
-            GPIO that an indicator LED is attached to.
+            GPIO that a LED strip is attached to. 
+            Internal pin on the devkit is 8 by default.
 
 
 endmenu
