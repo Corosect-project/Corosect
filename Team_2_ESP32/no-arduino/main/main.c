@@ -10,16 +10,21 @@
 #include "sdkconfig.h"
 #include "esp_sleep.h"
 #include "nvs_flash.h"
+#include "led_strip.h"
+#include "freertos/FreeRTOS.h"
+#include "freertos/task.h"
+#include "esp_log.h"
+#include "led_strip.h"
 
 #include "esp32_i2c.h"
 #include "wifi_mqtt.h"
-#include "led_control.h"
 
 /* The following macros can be set either via `idf.py menuconfig` (recommended)
  * or directly here in the source file */
 
 /* Pin configuration */
 #define SENSOR_POWER_GPIO CONFIG_SENSOR_POWER_GPIO
+#define LED_GPIO    CONFIG_LED_GPIO
 
 /* Address for Click Co2 sensor */
 #define I2C_CO2_ADDR CONFIG_I2C_CO2_ADDR
@@ -36,9 +41,53 @@
 /* Sleep time in case of a failure (ms) */
 #define ERR_SLEEP_MS CONFIG_ERR_SLEEP_MS
 
-
-
 static const char* TAG = "espi";
+static led_strip_handle_t led_strip;
+
+static inline void configure_led(void){
+    ESP_LOGI(TAG, "Configuring LED pin");
+    led_strip_config_t strip_config = {
+        .strip_gpio_num = LED_GPIO,
+        .max_leds = 1,
+    };
+
+    led_strip_rmt_config_t rmt_config = {
+        .resolution_hz = 10 * 1000 * 1000,
+    };
+
+    ESP_ERROR_CHECK(led_strip_new_rmt_device(&strip_config, &rmt_config, &led_strip));
+    led_strip_clear(led_strip);
+}
+
+static inline void configure_pins(){
+    /* Create bit mask for CO2 sensor power pin */
+    const uint32_t power_pin = 1 << SENSOR_POWER_GPIO;
+
+    /* For now we're only using a single pin but a mask can be added here
+     * and expanded if it is required */
+
+    gpio_config_t conf ={
+        .pin_bit_mask = power_pin,
+        .mode = GPIO_MODE_OUTPUT,
+        .pull_up_en = GPIO_PULLUP_DISABLE,
+        .pull_down_en = GPIO_PULLDOWN_ENABLE,
+        .intr_type = GPIO_INTR_DISABLE,
+    };
+
+    gpio_config(&conf);
+
+    /* Configure the LED pin */
+    configure_led();
+}
+
+static inline void set_led_color(int r, int g, int b){
+    led_strip_set_pixel(led_strip, 0, r, g, b);
+    led_strip_refresh(led_strip);
+}
+
+static inline void clear_led(void){
+    led_strip_clear(led_strip);
+}
 
 static inline void go_to_sleep(int ms){
     gpio_set_level(SENSOR_POWER_GPIO,0); /* Disable power output for CO2 sensor */
@@ -100,26 +149,6 @@ static inline esp_err_t measure_gas(uint8_t *data){
     return ret;
 }
 
-static inline void configure_pins(){
-    /* Create bit mask for CO2 sensor power pin */
-    const uint32_t power_pin = 1 << SENSOR_POWER_GPIO;
-
-    /* For now we're only using a single pin but a mask can be added here
-     * and expanded if it is required */
-
-    gpio_config_t conf ={
-        .pin_bit_mask = power_pin,
-        .mode = GPIO_MODE_OUTPUT,
-        .pull_up_en = GPIO_PULLUP_DISABLE,
-        .pull_down_en = GPIO_PULLDOWN_ENABLE,
-        .intr_type = GPIO_INTR_DISABLE,
-    };
-
-    gpio_config(&conf);
-
-    /* Configure the LED pin */
-    configure_led();
-}
 
 static void initialize_i2c(){
     /* A good result will be 0 so initialize 
@@ -171,30 +200,30 @@ void app_main(void){
      * otherwise connecting failed */
     if(test != 0){
         ESP_LOGE(TAG,"Wifi connection failed, sleeping");
-        set_led_color(255, 0, 0);
+        set_led_color(16, 0, 0);
         go_to_sleep(ERR_SLEEP_MS);
     }
 
     ESP_LOGI(TAG,"Got wifi connection, starting MQTT");
-    set_led_color(0, 255, 0);
+    set_led_color(0, 16, 0);
 
     test = mqtt_app_start();
     /* mqtt_app_start will also return 0 on success
      * otherwise connecting failed */
     if(test != 0){
         ESP_LOGE(TAG,"MQTT connection failed, sleeping");
-        set_led_color(255, 0, 0);
+        set_led_color(16, 0, 0);
         go_to_sleep(ERR_SLEEP_MS);
     }
 
     ESP_LOGI(TAG,"Got mqtt connection, starting I2C");
-    set_led_color(0, 0, 255);
+    set_led_color(0, 0, 16);
 
     /* Succesfully connected to WiFi and MQTT, time to start measuring.
      * Will automatically sleep if an error occurs during sensor selftest */
     initialize_i2c();
 
-    set_led_color(0, 255, 255);
+    set_led_color(0, 16, 16);
     while(1){
         for(int i = 0; i < SAMPLES; i++){
             measure_gas(data);
