@@ -24,7 +24,11 @@
 
 /* Pin configuration */
 #define SENSOR_POWER_GPIO CONFIG_SENSOR_POWER_GPIO
-#define LED_GPIO    CONFIG_LED_GPIO
+
+/* define LED GPIO only if usage is enabled in config */
+#ifdef CONFIG_ENABLE_LED
+#define LED_GPIO CONFIG_LED_GPIO
+#endif //CONFIG_ENABLE_LED
 
 /* Address for Click Co2 sensor */
 #define I2C_CO2_ADDR CONFIG_I2C_CO2_ADDR
@@ -42,8 +46,14 @@
 #define ERR_SLEEP_MS CONFIG_ERR_SLEEP_MS
 
 static const char* TAG = "espi";
-static led_strip_handle_t led_strip;
 
+#ifdef CONFIG_ENABLE_LED
+static led_strip_handle_t led_strip;
+#endif
+
+/* shouldn't be called at all if LED is not enabled so
+ * get rid of entire function */
+#ifdef CONFIG_ENABLE_LED
 static inline void configure_led(void){
     ESP_LOGI(TAG, "Configuring LED pin");
     led_strip_config_t strip_config = {
@@ -58,6 +68,7 @@ static inline void configure_led(void){
     ESP_ERROR_CHECK(led_strip_new_rmt_device(&strip_config, &rmt_config, &led_strip));
     led_strip_clear(led_strip);
 }
+#endif //CONFIG_ENABLE_LED
 
 static inline void configure_pins(){
     /* Create bit mask for CO2 sensor power pin */
@@ -76,17 +87,32 @@ static inline void configure_pins(){
 
     gpio_config(&conf);
 
+    /* only configure LED if it's enabled */
+#ifdef CONFIG_ENABLE_LED
     /* Configure the LED pin */
     configure_led();
+#endif //CONFIG_ENABLE_LED
 }
 
+/* Set LED color to 
+ * r: red
+ * g: green
+ * b: blue
+ * */
 static inline void set_led_color(int r, int g, int b){
+    /* set to nop if LED usage is disabled 
+     * won't cause issues if code calls this 
+     * but doesn't have LED usage enabled*/
+#ifdef CONFIG_ENABLE_LED
     led_strip_set_pixel(led_strip, 0, r, g, b);
     led_strip_refresh(led_strip);
+#endif //CONFIG_ENABLE_LED
 }
 
 static inline void clear_led(void){
+#ifdef CONFIG_ENABLE_LED
     led_strip_clear(led_strip);
+#endif//CONFIG_ENABLE_LED
 }
 
 static inline void go_to_sleep(int ms){
@@ -126,8 +152,8 @@ static inline esp_err_t self_test(uint8_t *data){
 static inline esp_err_t set_binary_gas(){
     /* 0x3615 set binary gas to 0x0001 co2 in air 0-100%  */
     const uint8_t cmd[4] = {0x36, 0x15, 
-                            /* args*/
-                            0x00, 0x01};
+        /* args*/
+        0x00, 0x01};
     esp_err_t ret = i2c_write_cmd(I2C_CO2_ADDR, cmd, sizeof(cmd));
     return ret;
 
@@ -191,9 +217,14 @@ void app_main(void){
      * this can be moved later in the sequence if the ~3mA saved during WiFi/MQTT setup is worth it and doesn't require wait later on */
     gpio_set_level(SENSOR_POWER_GPIO,1); /* Power output for CO2 sensor */
 
-    /* TODO: this can error out
-     * needs error checking but this works for now */
-    nvs_flash_init();
+    /* Initialize NVS */
+    test = nvs_flash_init();
+    if(test == ESP_ERR_NVS_NO_FREE_PAGES || test == ESP_ERR_NVS_NEW_VERSION_FOUND){
+        nvs_flash_erase();
+        test = nvs_flash_init();
+    }
+
+    ESP_ERROR_CHECK(test);
 
     test = wifi_init_sta();
     /* wifi_init_sta() will return 0 on success
@@ -212,18 +243,17 @@ void app_main(void){
      * otherwise connecting failed */
     if(test != 0){
         ESP_LOGE(TAG,"MQTT connection failed, sleeping");
-        set_led_color(16, 0, 0);
         go_to_sleep(ERR_SLEEP_MS);
     }
 
     ESP_LOGI(TAG,"Got mqtt connection, starting I2C");
-    set_led_color(0, 0, 16);
 
     /* Succesfully connected to WiFi and MQTT, time to start measuring.
      * Will automatically sleep if an error occurs during sensor selftest */
     initialize_i2c();
 
-    set_led_color(0, 16, 16);
+    set_led_color(5,0,16);
+
     while(1){
         for(int i = 0; i < SAMPLES; i++){
             measure_gas(data);
@@ -239,5 +269,14 @@ void app_main(void){
         ESP_LOGI(TAG,"Measured, going to sleep");
         go_to_sleep(SLEEP_MS);
 
+
+        /* this should never ever be hit
+         * but break out of loop just in case
+         * so program doesn't end up stuck measuring */
+        break;
+
     }
+    /* broke out of loop, try to sleep once again
+     * in case previous sleep failed for some reason */
+    go_to_sleep(SLEEP_MS);
 }
