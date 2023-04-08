@@ -15,6 +15,13 @@ static struct sockaddr_storage broker;
 
 void mqtt_evt_handler(struct mqtt_client *client, const struct mqtt_evt *evt);
 
+/**
+ * @brief Initialize mqtt parameters and set broker ip and port
+ * 
+ * @param server_ip broker's ip address
+ * @param port broker's port
+ * @return Pointer to the client struct or NULL on failure
+ */
 struct mqtt_client *init_mqtt(const char *server_ip, uint32_t port) {
   uint32_t err;
 
@@ -24,10 +31,10 @@ struct mqtt_client *init_mqtt(const char *server_ip, uint32_t port) {
   client_ctx.evt_cb = mqtt_evt_handler;
   client_ctx.client_id.utf8 = client_id;
   client_ctx.client_id.size = sizeof(client_id) - 1;
-  client_ctx.password = NULL;
-  client_ctx.user_name = NULL;
+  client_ctx.password = NULL; // No password
+  client_ctx.user_name = NULL; // No username
   client_ctx.protocol_version = MQTT_VERSION_3_1_1;
-  client_ctx.transport.type = MQTT_TRANSPORT_NON_SECURE;
+  client_ctx.transport.type = MQTT_TRANSPORT_NON_SECURE; // No TLS certificates
 
   client_ctx.rx_buf = rx_buffer;
   client_ctx.rx_buf_size = sizeof(rx_buffer);
@@ -35,14 +42,15 @@ struct mqtt_client *init_mqtt(const char *server_ip, uint32_t port) {
   client_ctx.tx_buf_size = sizeof(tx_buffer);
 
   struct sockaddr_in6 *broker6 = (struct sockaddr_in6 *)&broker;
-  memset(broker6, 0, sizeof(*broker6));
+  memset(broker6, 0, sizeof(*broker6)); // Zero the struct
 
   broker6->sin6_family = AF_INET6;
   broker6->sin6_port = htons(port);
-  err = net_addr_pton(AF_INET6, server_ip, &broker6->sin6_addr);
+  err = net_addr_pton(AF_INET6, server_ip, &broker6->sin6_addr); // Assign broker's ip address to sockaddr struct
   LOG_DBG("TEST: %d", err);
   // zsock_inet_pton(AF_INET6, SERVER_ADDR, &broker6->sin6_addr);
 
+  // Set pollable events for later use
   fds[0].fd = client_ctx.transport.tcp.sock;
   fds[0].events = ZSOCK_POLLIN;
 
@@ -52,7 +60,14 @@ struct mqtt_client *init_mqtt(const char *server_ip, uint32_t port) {
     return NULL;
 }
 
-uint32_t send_message(char *msg, char *topic) {
+/**
+ * @brief Publish message to specific topic
+ * 
+ * @param msg message string
+ * @param topic MQTT topic
+ * @return 0 or negative error code (Zephyr errno.h)
+ */
+int send_message(char *msg, char *topic) {
   struct mqtt_publish_param param = {0};
   param.message.payload.data = msg;
   param.message.payload.len = strlen(msg);
