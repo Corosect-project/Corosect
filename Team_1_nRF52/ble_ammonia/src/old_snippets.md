@@ -105,3 +105,113 @@ void main() {
   net_context_recv(context, receive, K_FOREVER, NULL);
 }
 ```
+
+## bsd sockets
+
+```c
+void init_sockaddresses(struct sockaddr *my_addr, struct sockaddr *peer) {
+  // Set zephyr address
+  memset(my_addr, 0, sizeof(*my_addr));
+  struct sockaddr_in6 *addr6 = net_sin6(my_addr);
+  addr6->sin6_family = AF_INET6;
+  addr6->sin6_port = htons(1885);
+  int32_t err = net_addr_pton(AF_INET6, ZEPHYR_ADDR, &addr6->sin6_addr);
+  if (ERROR(err)) LOG_ERR("ADDR, %d", err);
+
+  // Set peer address
+  memset(peer, 0, sizeof(*peer));
+  struct sockaddr_in6 *peer6 = net_sin6(peer);
+  peer6->sin6_family = AF_INET6;
+  peer6->sin6_port = htons(1885);
+  err = net_addr_pton(AF_INET6, SERVER_ADDR, &peer6->sin6_addr);
+  if (ERROR(err)) LOG_ERR("PEER, %d", err);
+}
+
+void main() {
+  struct sockaddr addr;
+  struct sockaddr peer;
+  init_sockaddresses(&addr, &peer);
+
+  int sock = zsock_socket(AF_INET6, SOCK_STREAM, IPPROTO_TCP);
+  if (ERROR(sock)) LOG_ERR("%d, err: %d", sock, errno);
+
+  uint8_t buffer[256] = {0};
+  struct zsock_pollfd tcpfds[1];
+  tcpfds[0].events = ZSOCK_POLLIN;
+  tcpfds[0].fd = sock;
+  tcpfds[0].revents = 0;
+
+  zsock_connect(sock, &peer, sizeof(peer));
+  zsock_send(sock, "Hello from Zephyr", sizeof("Hello from Zephyr") - 1, 0);
+
+  while (true) {
+    err = zsock_poll(tcpfds, 1, 10000);
+    if (ERROR(err)) {
+      LOG_ERR("Poll error, %d", errno);
+      break;
+    } else if (err > 0) {
+      if (tcpfds[0].revents & ZSOCK_POLLIN) {
+        ssize_t received = zsock_recv(sock, buffer, 256, 0);
+        if (received == 0) {
+          LOG_DBG("Connection closed");
+          break;
+        } else if (received > 0) {
+          LOG_HEXDUMP_WRN(buffer, received, "DATA:");
+          break;
+        } else
+          LOG_ERR("Error on receiving, %d", errno);
+      }
+    } else {
+      LOG_DBG("Poll timedout");
+      LOG_DBG("revent, %d", tcpfds[0].revents);
+    }
+  }
+  err = zsock_close(sock);
+  if (ERROR(err)) LOG_ERR("Socket close error, %d", errno);
+
+  sock = zsock_socket(AF_INET6, SOCK_STREAM, IPPROTO_TCP);
+  LOG_ERR("%d, err: %d", sock, errno);
+
+  err = zsock_bind(sock, &addr, sizeof(addr));
+  if (ERROR(err)) LOG_ERR("Bind, %d", errno);
+  zsock_listen(sock, 1);
+  if (ERROR(err)) {
+    LOG_ERR("Listen, %d", errno);
+    return;
+  }
+  while (true) {
+    LOG_INF("LOOP");
+    struct sockaddr client_addr;
+    socklen_t addrlen;
+    int client = zsock_accept(sock, &client_addr, &addrlen);
+    if (ERROR(client)) {
+      LOG_ERR("Invalid client fd, %d", errno);
+      continue;
+    } else {
+      tcpfds[0].fd = client;
+      tcpfds[0].events = ZSOCK_POLLIN;
+      tcpfds[0].revents = 0;
+    }
+    do {
+      err = zsock_poll(tcpfds, 1, 10000);
+      if (ERROR(err)) {
+        LOG_ERR("Poll error, %d", errno);
+      } else if (err > 0) {
+        if (tcpfds[0].revents & ZSOCK_POLLIN) {
+          ssize_t received = zsock_recv(client, buffer, sizeof(buffer), MSG_DONTWAIT);
+          if (ERROR(received))
+            LOG_ERR("Recev error, %d", errno);
+          else if (received == 0) {
+            LOG_INF("Sock closed");
+            break;
+          } else {
+            LOG_HEXDUMP_INF(buffer, received, "BUFFER DATA:");
+            zsock_send(client, buffer, received, 0);
+          }
+        }
+      }
+    } while (true);
+  }
+
+}
+```

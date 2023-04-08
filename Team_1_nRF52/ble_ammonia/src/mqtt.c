@@ -4,6 +4,10 @@
 #include <zephyr/net/net_ip.h>
 LOG_MODULE_DECLARE(app, LOG_LEVEL_DBG);
 
+// MQTT global variables
+struct zsock_pollfd fds[1] = {0};
+bool connected = false;
+
 // MQTT
 static uint8_t rx_buffer[256];
 static uint8_t tx_buffer[256];
@@ -52,10 +56,10 @@ struct mqtt_client *init_mqtt(const char *server_ip, uint32_t port) {
 uint32_t send_message(char *msg, char *topic) {
   struct mqtt_publish_param param = {0};
   param.message.payload.data = msg;
-  param.message.payload.len = sizeof(msg) - 1;
+  param.message.payload.len = strlen(msg);
   param.message.topic.qos = MQTT_QOS_0_AT_MOST_ONCE;
   param.message.topic.topic.utf8 = topic;
-  param.message.topic.topic.size = sizeof(topic) - 1;
+  param.message.topic.topic.size = strlen(topic);
   return mqtt_publish(&client_ctx, &param);
 }
 

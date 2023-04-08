@@ -14,7 +14,6 @@
 #include <zephyr/logging/log.h>
 #include <zephyr/net/mqtt.h>
 #include <zephyr/net/net_config.h>
-// #include <zephyr/net/socket.h>
 
 LOG_MODULE_REGISTER(app, LOG_LEVEL_DBG);
 
@@ -45,24 +44,6 @@ BT_CONN_CB_DEFINE(con_calbacks) = {
     .connected = bt_connected,
     .disconnected = bt_disconnected};
 
-void init_sockaddresses(struct sockaddr *my_addr, struct sockaddr *peer) {
-  // Set zephyr address
-  memset(my_addr, 0, sizeof(*my_addr));
-  struct sockaddr_in6 *addr6 = net_sin6(my_addr);
-  addr6->sin6_family = AF_INET6;
-  addr6->sin6_port = htons(1885);
-  int32_t err = net_addr_pton(AF_INET6, ZEPHYR_ADDR, &addr6->sin6_addr);
-  if (ERROR(err)) LOG_ERR("ADDR, %d", err);
-
-  // Set peer address
-  memset(peer, 0, sizeof(*peer));
-  struct sockaddr_in6 *peer6 = net_sin6(peer);
-  peer6->sin6_family = AF_INET6;
-  peer6->sin6_port = htons(1885);
-  err = net_addr_pton(AF_INET6, SERVER_ADDR, &peer6->sin6_addr);
-  if (ERROR(err)) LOG_ERR("PEER, %d", err);
-}
-
 void main(void) {
   int32_t err;
   LOG_INF("Hello World! %s", CONFIG_BOARD);
@@ -79,78 +60,6 @@ void main(void) {
   LOG_DBG("Continuing");
   init_network(ZEPHYR_ADDR);
 
-  struct sockaddr addr;
-  struct sockaddr peer;
-  init_sockaddresses(&addr, &peer);
-
-  int sock = zsock_socket(AF_INET6, SOCK_DGRAM, IPPROTO_UDP);
-  if (ERROR(sock)) LOG_ERR("%d, err: %d", sock, errno);
-
-  uint8_t buffer[256] = {0};
-  struct zsock_pollfd udpfds[1];
-  udpfds[0].events = ZSOCK_POLLIN;
-  udpfds[0].fd = sock;
-  udpfds[0].revents = 0;
-
-  zsock_connect(sock, &peer, sizeof(peer));
-  zsock_send(sock, "Hello from Zephyr", sizeof("Hello from Zephyr") - 1, 0);
-
-  while (true) {
-    err = zsock_poll(udpfds, 1, 10000);
-    if (ERROR(err)) {
-      LOG_ERR("Poll error, %d", errno);
-      break;
-    } else if (err > 0) {
-      if (udpfds[0].revents & ZSOCK_POLLIN) {
-        ssize_t received = zsock_recv(sock, buffer, 256, 0);
-        if (received == 0) {
-          LOG_DBG("Connection closed");
-          break;
-        } else if (received > 0) {
-          LOG_HEXDUMP_WRN(buffer, received, "DATA:");
-          break;
-        } else
-          LOG_ERR("Error on receiving, %d", errno);
-      }
-    } else {
-      LOG_DBG("Poll timedout");
-      LOG_DBG("revent, %d", udpfds[0].revents);
-    }
-  }
-  err = zsock_close(sock);
-  if (ERROR(err)) LOG_ERR("Socket close error, %d", errno);
-
-  sock = zsock_socket(AF_INET6, SOCK_STREAM, IPPROTO_TCP);
-  LOG_ERR("%d, err: %d", sock, errno);
-
-  err = zsock_bind(sock, &addr, sizeof(addr));
-  if (ERROR(err)) LOG_ERR("Bind, %d", errno);
-  zsock_listen(sock, 1);
-  if (ERROR(err)) {
-    LOG_ERR("Listen, %d", errno);
-    return;
-  }
-  while (true) {
-    LOG_INF("LOOP");
-    struct sockaddr client_addr;
-    socklen_t addrlen;
-    int client = zsock_accept(sock, &client_addr, &addrlen);
-    LOG_ERR("%d", errno);
-    do {
-      ssize_t received = zsock_recv(client, buffer, sizeof(buffer), MSG_WAITALL);
-      LOG_ERR("%d", errno);
-      if (ERROR(received))
-        LOG_ERR("Recev error, %d", received);
-      else if (received == 0) {
-        LOG_INF("Sock closed");
-        break;
-      } else {
-        LOG_HEXDUMP_INF(buffer, received, "BUFFER DATA:");
-        zsock_send(client, buffer, received, 0);
-      }
-    } while (true);
-  }
-
   struct mqtt_client *client_ctx = init_mqtt(SERVER_ADDR, SERVER_PORT);
 
   for (size_t i = 0; i < 11; i++) {
@@ -163,10 +72,12 @@ void main(void) {
       return;
     }
 
-    zsock_poll(fds, 1, 10000);
+    err = zsock_poll(fds, 1, 10000);
+    LOG_DBG("POLL ret, %d", err);
     err = mqtt_input(client_ctx);
     if (ERROR(err)) LOG_ERR("Input error, %d", err);
-
+    LOG_DBG("%d", connected);
+    k_sleep(K_SECONDS(5));
     if (!connected) {
       err = mqtt_abort(client_ctx);
       LOG_ERR("Connection aborted, %d", err);
@@ -189,9 +100,14 @@ void main(void) {
 #ifndef DISABLE_NH3
     read_and_print_nh3();
 #endif
-    zsock_poll(fds, 1, 5000);
-    err = mqtt_input(client_ctx);
-    LOG_ERR("%d", err);
+    err = zsock_poll(fds, 1, 5000);
+    if (err > 0) {
+      if (fds[0].revents & ZSOCK_POLLIN) {
+        err = mqtt_input(client_ctx);
+        LOG_ERR("%d", err);
+      }
+    } else if (ERROR(err))
+      LOG_ERR("%d", errno);
     err = mqtt_live(client_ctx);
     LOG_ERR("%d", err);
     LOG_DBG("WAITING");
@@ -199,7 +115,9 @@ void main(void) {
   }
 
   LOG_INF("QUIT\n");
-  mqtt_disconnect(client_ctx);
+  err = mqtt_disconnect(client_ctx);
+  LOG_DBG("Disconnected, %d", err);
+  k_sleep(K_MSEC(1000));
   bt_le_adv_stop();
   bt_disable();
 }
