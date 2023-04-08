@@ -2,11 +2,7 @@
 
 #include <zephyr/logging/log.h>
 #include <zephyr/net/net_config.h>
-#include <zephyr/net/net_event.h>
 #include <zephyr/net/net_if.h>
-#include <zephyr/net/net_ip.h>
-#include <zephyr/net/net_l2.h>
-#include <zephyr/net/net_mgmt.h>
 
 LOG_MODULE_DECLARE(app, LOG_LEVEL_DBG);
 

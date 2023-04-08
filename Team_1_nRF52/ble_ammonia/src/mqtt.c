@@ -1,7 +1,6 @@
 #include "mqtt.h"
 
 #include <zephyr/logging/log.h>
-#include <zephyr/net/net_ip.h>
 LOG_MODULE_DECLARE(app, LOG_LEVEL_DBG);
 
 // MQTT global variables

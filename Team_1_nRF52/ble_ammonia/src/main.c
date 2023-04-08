@@ -13,7 +13,6 @@
 #include <zephyr/kernel.h>
 #include <zephyr/logging/log.h>
 #include <zephyr/net/mqtt.h>
-#include <zephyr/net/net_config.h>
 
 LOG_MODULE_REGISTER(app, LOG_LEVEL_DBG);
 
