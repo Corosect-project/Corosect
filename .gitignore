@@ -1,1 +1,6 @@
 .vscode/
+
+*.svd
+build/
+sdkconfig*
+
