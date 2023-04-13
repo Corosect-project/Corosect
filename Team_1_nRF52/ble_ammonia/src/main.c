@@ -5,7 +5,6 @@
  */
 
 #include <dk_buttons_and_leds.h>
-#include <nrf52.h>
 #include <nrfx_spim.h>
 #include <zephyr/bluetooth/bluetooth.h>
 #include <zephyr/bluetooth/conn.h>
