@@ -1,6 +1,6 @@
 #include <zephyr/kernel.h>
 #include <zephyr/logging/log.h>
-LOG_MODULE_DECLARE(main_log, LOG_LEVEL_DBG);
+LOG_MODULE_DECLARE(app, LOG_LEVEL_DBG);
 
 #include "nh3_sensor.h"
 
