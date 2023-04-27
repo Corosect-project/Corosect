@@ -16,6 +16,7 @@
 #define MQTT_CONNECT_TRY_TIME 1000 //sama mqtt
 #define SAMPLES 10 //montako kertaa mitataan
 
+/* Pinnit eivät voi olla oletuspinnit, koska pinniä 8 tarvitaan LEDin kanssa*/
 const int I2C_SDA_PIN = 6;
 const int I2C_SCL_PIN = 7;
 
@@ -47,11 +48,11 @@ enum LED_COLOR{
 };
 
 //Wifi
-char ssid[]="のヮの";
+char ssid[]="panoulu";
 char pass[]="";
 
 //MQTT
-char broker[]="10.0.0.84";
+char broker[]="100.64.254.11";
 int port = 1883;
 char devname[] = "esp32";
 
@@ -69,7 +70,8 @@ void setup() {
 
   PROGRAM_STATE = PROGRAM_START;
   Wire.setPins(I2C_SDA_PIN, I2C_SCL_PIN);
-  Wire.begin();
+  Wire.setClock(1000000);
+  Wire.begin(I2C_SDA_PIN, I2C_SCL_PIN);
 
   client.setServer(broker,port); //MQTT asetukset
 
@@ -214,7 +216,7 @@ void goToSleep(int ms){
 
   esp_sleep_enable_timer_wakeup(ms*1000); //ajastin käyttää aikaa mikrosekunneissa
   esp_deep_sleep_start();
-    
+  esp_sleep_pd_config(esp_sleep_pd_domain_t domain, ESP_PD_OPTION_OFF);
   Serial.println("Krooh pyyh");
 }
 
@@ -235,18 +237,18 @@ void readCo2Sensor(){
   delay(100); //Tarvitaan viive ennen lukua (saattaa toimia pienemmälläkin)
   
   int i = 0;
-  uint8_t bytes[4]={0,0,0,0}; 
+  uint8_t test[4]={0,0,0,0}; 
   uint16_t co2_result=0,temp_result=0;
   
   /* Luetaan saadut tiedot */
   Wire.requestFrom(co2_addr, 4); //luetaan 4 tavua, tiedot ensin kaasusta ja sitten lämpötilasta
   while(Wire.available()){
-    bytes[i] = Wire.read(); //Data tulee MSB ensin 
+    test[i] = Wire.read(); //Data tulee MSB ensin 
     ++i;
   }
   //liitetään molemmat tavut yhdeksi arvoksi
-  co2_result = ((uint16_t)bytes[0] << 8) | (uint16_t)bytes[1]; //rullataan ensimmäistä tavua vasemmalle 8 paikkaa ja sitten bittitason OR, jotta saadaan yksi 16 bittinen arvo.
-  temp_result = ((uint16_t)bytes[2] << 8) | (uint16_t)bytes[3]; //sama mutta lämpötilalle
+  co2_result = ((uint16_t)test[0] << 8) | (uint16_t)test[1]; //rullataan ensimmäistä tavua vasemmalle 8 paikkaa ja sitten bittitason OR, jotta saadaan yksi 16 bittinen arvo.
+  temp_result = ((uint16_t)test[2] << 8) | (uint16_t)test[3]; //sama mutta lämpötilalle
   
   //Tarkistusta varten
   Serial.print("Co2: ");
@@ -274,13 +276,25 @@ void readResults(){
   PROGRAM_STATE = MEASURING_DATA;
   for(int i = 0; i<SAMPLES;++i){
     readCo2Sensor();
-    delay(100);
+    delay(1000);
   }
   PROGRAM_STATE = ALL_DONE;
 }
 
+void CO2_sleep(){ //CO2 nukuttaminen
+  Wire.beginTransmission(co2_addr);
+  Wire.write(0x36);Wire.write(0x77); //Sleep tilan käyttöön otto
+  Wire.endTransmission();
+}
+
+void CO2_wakeup(){ //CO2 Herättäminen
+    Wire.beginTransmission(co2_addr);
+    Wire.write(0x0); //Herätys komento
+    Wire.endTransmission();
+}
+
 void loop() {
-  delay(1000);
+  delay(100);
 
   switch(PROGRAM_STATE){
     case PROGRAM_START: //Ollaan juuri käynnistetty tai palattu unesta, etsitään ensin wifi
@@ -293,7 +307,7 @@ void loop() {
     case WLAN_NOT_FOUND: //Wifiä ei löytynyt -> nukkumaan
         Serial.println("Nukutaan vielä pitemmin");
         setLED(RED);
-        goToSleep(7500);
+        goToSleep(5000);
         break;
     case WLAN_CONNECT_SUCCESS: //Wifi yhteys onnistui -> yritetään mqtt yhteyttä
         setLED(GREEN);
