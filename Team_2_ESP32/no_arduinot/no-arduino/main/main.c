@@ -25,15 +25,10 @@
 /* Pin configuration */
 #define SENSOR_POWER_GPIO CONFIG_SENSOR_POWER_GPIO
 
-<<<<<<< HEAD:Team_2_ESP32/no_arduinot/no-arduino/main/main.c
- RTC maximum SCL frequency is 1MHz 
-#define I2C_MASTER_FREQ_HZ 1000000*/
-=======
 /* define LED GPIO only if usage is enabled in config */
 #ifdef CONFIG_ENABLE_LED
 #define LED_GPIO CONFIG_LED_GPIO
 #endif //CONFIG_ENABLE_LED
->>>>>>> 06884eb70aa5ab6e031c6902cf977979e104b4df:Team_2_ESP32/no-arduino/main/main.c
 
 /* Address for Click Co2 sensor */
 #define I2C_CO2_ADDR CONFIG_I2C_CO2_ADDR
@@ -49,11 +44,6 @@
 
 /* Sleep time in case of a failure (ms) */
 #define ERR_SLEEP_MS CONFIG_ERR_SLEEP_MS
-<<<<<<< HEAD:Team_2_ESP32/no_arduinot/no-arduino/main/main.c
-
-
-=======
->>>>>>> 06884eb70aa5ab6e031c6902cf977979e104b4df:Team_2_ESP32/no-arduino/main/main.c
 
 static const char* TAG = "espi";
 
@@ -61,10 +51,6 @@ static const char* TAG = "espi";
 static led_strip_handle_t led_strip;
 #endif
 
-<<<<<<< HEAD:Team_2_ESP32/no_arduinot/no-arduino/main/main.c
-/* MQTT client used to send messages  
-esp_mqtt_client_handle_t mqtt_client;*/
-=======
 /* shouldn't be called at all if LED is not enabled so
  * get rid of entire function */
 #ifdef CONFIG_ENABLE_LED
@@ -143,7 +129,6 @@ static inline void go_to_sleep(int ms){
 
     esp_deep_sleep_start();
 }
->>>>>>> 06884eb70aa5ab6e031c6902cf977979e104b4df:Team_2_ESP32/no-arduino/main/main.c
 
 static inline esp_err_t disable_crc(){
     /* 0x3768 disable crc */
@@ -191,55 +176,17 @@ static inline esp_err_t measure_gas(uint8_t *data){
 }
 
 
-<<<<<<< HEAD:Team_2_ESP32/no_arduinot/no-arduino/main/main.c
-/* Send sleep command 0x3677 to sensor*/
-static inline esp_err_t sensor_sleep(){
-    esp_err_t ret = i2c_write(I2C_CO2_ADDR, 0x36, 0x77);
-    return ret;
-}
-
-static inline esp_err_t sensor_wake(){
-    esp_err_t ret = i2c_wakeup_sensor(I2C_CO2_ADDR);
-    /* Sensor needs time to wake up, 50ms seems reliable */
-    vTaskDelay(50 / portTICK_PERIOD_MS); 
-    return ret;
-
-}
-
-/*static void configure_led(){
-    gpio_config_t conf ={
-        .pin_bit_mask = 0x100,  Bit mask for GPIO 8 
-        .mode = GPIO_MODE_OUTPUT,
-        .pull_up_en = GPIO_PULLUP_DISABLE,
-        .pull_down_en = GPIO_PULLDOWN_ENABLE,
-        .intr_type = GPIO_INTR_DISABLE,
-    };
-
-    gpio_config(&conf);
-
-}*/
-
-void initialize_i2c(){
-    uint8_t data[2]={-1};
-=======
 static void initialize_i2c(){
     /* A good result will be 0 so initialize 
      * to a known bad value here */
     uint8_t data[2]={255,255};
->>>>>>> 06884eb70aa5ab6e031c6902cf977979e104b4df:Team_2_ESP32/no-arduino/main/main.c
 
     int test = i2c_master_init();
     puts("i2c init");
     printf("driver install %s\n",esp_err_to_name(test));
 
-<<<<<<< HEAD:Team_2_ESP32/no_arduinot/no-arduino/main/main.c
-    test = sensor_wake();
-    printf("sensor wake %s\n",esp_err_to_name(test));
-
-=======
     /* We won't be needing error checking in this project
      * so disable CRC to reduce transmission overhead */
->>>>>>> 06884eb70aa5ab6e031c6902cf977979e104b4df:Team_2_ESP32/no-arduino/main/main.c
     test = disable_crc();
     printf("disable crc %s\n",esp_err_to_name(test));
 
@@ -249,19 +196,6 @@ static void initialize_i2c(){
     printf("set binary gas %s\n\n",esp_err_to_name(test));
 
     test = self_test(data);
-<<<<<<< HEAD:Team_2_ESP32/no_arduinot/no-arduino/main/main.c
-    if((data[0] << 8 | data[1]) != 0){ ESP_LOGE(TAG,"Sensor selftest failure");};
-    printf("selftest sent %s\n",esp_err_to_name(test));
-    printf("selftest result: %d %d\n",data[0], data[1]);
-}
-
-
-void go_to_sleep(int ms){
-    sensor_sleep();
-    esp_sleep_enable_timer_wakeup(ms*1000);
-    esp_deep_sleep_start();
-}
-=======
     if(((data[0] << 8) | data[1]) != 0){ 
         ESP_LOGE(TAG,"Sensor selftest failure"); 
         set_led_color(255, 0, 0);
@@ -271,7 +205,6 @@ void go_to_sleep(int ms){
 }
 
 
->>>>>>> 06884eb70aa5ab6e031c6902cf977979e104b4df:Team_2_ESP32/no-arduino/main/main.c
 
 void app_main(void){
     uint8_t data[4]={0};
@@ -279,46 +212,10 @@ void app_main(void){
     uint16_t temp_result;
     int test;
 
-<<<<<<< HEAD:Team_2_ESP32/no_arduinot/no-arduino/main/main.c
-    nvs_flash_init();
-    test = wifi_init_sta();
-    /* wifi_init_sta() will return 0 on success
-     * otherwise connecting failed */
-    if(test != 0){
-        ESP_LOGI(TAG,"Wifi connection failed, sleeping");
-        go_to_sleep(ERR_SLEEP_MS);
-    }
-
-    ESP_LOGI(TAG,"Got wifi connection, starting MQTT");
-    mqtt_app_start();
-    initialize_i2c();
-    test = measure_gas(data);
-    printf("Measure: %s\n",esp_err_to_name(test));
-    printf("co2 Data: %d\n",(data[0]<<8|data[1]));
-    printf("temp data: %d\n\n",(data[2]<<8|data[3]));
-
-
-    while(1){
-        for(int i = 0; i < SAMPLES; i++){
-            measure_gas(data);
-            co2_result = data[0] << 8 | data[1];
-            temp_result = data[2] << 8 | data[3];
-            mqtt_send_result(co2_result, "co2");
-            mqtt_send_result(temp_result, "temp");
-            printf("co2: %d \t temp: %d\n",(data[0]<<8|data[1]), (data[2]<<8|data[3]));
-            /* Measure should only be called once every second */
-            vTaskDelay(MEASURE_INTERVAL / portTICK_PERIOD_MS);
-        }
-
-        ESP_LOGI(TAG,"Measured, going to sleep");
-        go_to_sleep(SLEEP_MS);
-
-=======
     configure_pins();
     /* enable power output here so sensor has time to run through boot 
      * this can be moved later in the sequence if the ~3mA saved during WiFi/MQTT setup is worth it and doesn't require wait later on */
     gpio_set_level(SENSOR_POWER_GPIO,1); /* Power output for CO2 sensor */
->>>>>>> 06884eb70aa5ab6e031c6902cf977979e104b4df:Team_2_ESP32/no-arduino/main/main.c
 
     /* Initialize NVS */
     test = nvs_flash_init();
@@ -326,8 +223,6 @@ void app_main(void){
         nvs_flash_erase();
         test = nvs_flash_init();
     }
-<<<<<<< HEAD:Team_2_ESP32/no_arduinot/no-arduino/main/main.c
-=======
 
     ESP_ERROR_CHECK(test);
 
@@ -384,5 +279,4 @@ void app_main(void){
     /* broke out of loop, try to sleep once again
      * in case previous sleep failed for some reason */
     go_to_sleep(SLEEP_MS);
->>>>>>> 06884eb70aa5ab6e031c6902cf977979e104b4df:Team_2_ESP32/no-arduino/main/main.c
 }

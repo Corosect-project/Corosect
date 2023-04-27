@@ -108,8 +108,6 @@ menu "Corosect project configuration"
         help
             Time to sleep in case of a failure during WiFi or MQTT connection.
 
-<<<<<<< HEAD:Team_2_ESP32/no_arduinot/no-arduino/main/Kconfig.projbuild
-=======
     config SENSOR_POWER_GPIO
         int "CO2 sensor power GPIO num"
         default 3
@@ -130,6 +128,5 @@ menu "Corosect project configuration"
             GPIO that a LED strip is attached to. 
             Internal pin on the devkit is 8 by default.
 
->>>>>>> 06884eb70aa5ab6e031c6902cf977979e104b4df:Team_2_ESP32/no-arduino/main/Kconfig.projbuild
 endmenu
 

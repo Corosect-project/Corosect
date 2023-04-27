@@ -34,14 +34,4 @@ esp_err_t i2c_write_cmd(uint8_t addr, const uint8_t *data, size_t len);
 esp_err_t i2c_read(uint8_t addr, uint8_t *data, size_t len);
 
 
-<<<<<<< HEAD:Team_2_ESP32/no_arduinot/no-arduino/main/esp32_i2c.h
-/* Send wakeup command to STC31 sensor 
- * addr: address of device to wake up
- * NOTE: does NOT wait for sensor to wake up
- *
- * returns 0 on success */
-esp_err_t i2c_wakeup_sensor(uint8_t addr);
-
-=======
->>>>>>> 06884eb70aa5ab6e031c6902cf977979e104b4df:Team_2_ESP32/no-arduino/main/esp32_i2c.h
 #endif // _ESP32_I2C_H
