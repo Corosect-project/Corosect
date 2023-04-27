@@ -11,25 +11,18 @@
  * returns 0 on succes */
 esp_err_t i2c_master_init(void);
 
-/* Write 16 bit command to I2C slave
+/* Write len byte command to I2C slave
  * addr: slave address
- * cmdh: MSB of command
- * cmdl: LSB of command 
+ * data: command and arguments to be written
+ *
+ * data should be an array of commands and related arguments to write
+ * supports writing 8 bit and 16 bit long commands
+ * with 8 bit and 16 bit long arguments
  *
  * returns 0 on success
  */
-esp_err_t i2c_write(uint8_t addr, uint8_t cmdh, uint8_t cmdl);
+esp_err_t i2c_write_cmd(uint8_t addr, const uint8_t *data, size_t len);
 
-/* Write 16 bit command with 16 bit arg to I2C slave
- * addr: slave address
- * cmdh: MSB of command
- * cmdl: LSB of command 
- * argh: MSB of arg
- * argl: LSB of arg
- *
- * returns 0 on success
- */
-esp_err_t i2c_write_with_arg(uint8_t addr, uint8_t cmdh, uint8_t cmdl, uint8_t argh, uint8_t argl);
 
 /* Read len bytes from I2C slave
  * addr: slave address
@@ -41,6 +34,7 @@ esp_err_t i2c_write_with_arg(uint8_t addr, uint8_t cmdh, uint8_t cmdl, uint8_t a
 esp_err_t i2c_read(uint8_t addr, uint8_t *data, size_t len);
 
 
+<<<<<<< HEAD:Team_2_ESP32/no_arduinot/no-arduino/main/esp32_i2c.h
 /* Send wakeup command to STC31 sensor 
  * addr: address of device to wake up
  * NOTE: does NOT wait for sensor to wake up
@@ -48,4 +42,6 @@ esp_err_t i2c_read(uint8_t addr, uint8_t *data, size_t len);
  * returns 0 on success */
 esp_err_t i2c_wakeup_sensor(uint8_t addr);
 
+=======
+>>>>>>> 06884eb70aa5ab6e031c6902cf977979e104b4df:Team_2_ESP32/no-arduino/main/esp32_i2c.h
 #endif // _ESP32_I2C_H

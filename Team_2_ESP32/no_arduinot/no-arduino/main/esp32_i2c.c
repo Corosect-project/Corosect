@@ -13,15 +13,19 @@
 #include "sdkconfig.h"
 #include "esp_sleep.h"
 
+/* Following macros can be set via `idf.py menuconfig` (recommended)
+ * or directly here in the source file */
+
 /* Set SDA and SCL pins to configured ones, by default 6 & 7
- * Default pins 8 & 9 incompatible with internal LED pin */
+ * Default ESP32C3 pins 8 & 9 incompatible with internal LED pin 8 */
 #define I2C_MASTER_SDA_IO CONFIG_I2C_MASTER_SDA
 #define I2C_MASTER_SCL_IO CONFIG_I2C_MASTER_SCL
 
 /* RTC maximum SCL frequency is 1MHz */
 #define I2C_MASTER_FREQ_HZ CONFIG_I2C_MASTER_FREQ
 
-static const char* TAG = "esp_i2c";
+/* Tag for debugging */
+/*static const char* TAG = "esp_i2c";*/
 
 esp_err_t i2c_master_init(void){
     int i2c_master_port = I2C_NUM_0;
@@ -46,6 +50,7 @@ esp_err_t i2c_master_init(void){
 
 }
 
+<<<<<<< HEAD:Team_2_ESP32/no_arduinot/no-arduino/main/esp32_i2c.c
 /* Write 16 bit command to i2c slave 
  * TODO: ugly solution. Make into a generic write function that can handle n length commands and args*/
 esp_err_t i2c_write(uint8_t addr, uint8_t cmdh, uint8_t cmdl){
@@ -100,6 +105,9 @@ esp_err_t i2c_wakeup_sensor(uint8_t addr){
  * Improved i2c write function, work in progress
  *
 static esp_err_t i2c_write_cmd(uint8_t addr, const uint8_t *data, size_t len){
+=======
+esp_err_t i2c_write_cmd(uint8_t addr, const uint8_t *data, size_t len){
+>>>>>>> 06884eb70aa5ab6e031c6902cf977979e104b4df:Team_2_ESP32/no-arduino/main/esp32_i2c.c
     esp_err_t ret;
     i2c_cmd_handle_t cmd = i2c_cmd_link_create();
     i2c_master_start(cmd);
@@ -110,7 +118,7 @@ static esp_err_t i2c_write_cmd(uint8_t addr, const uint8_t *data, size_t len){
     i2c_cmd_link_delete(cmd);
 
     return ret;
-}*/
+}
 
 esp_err_t i2c_read(uint8_t addr, uint8_t *data, size_t len){
     esp_err_t ret;
