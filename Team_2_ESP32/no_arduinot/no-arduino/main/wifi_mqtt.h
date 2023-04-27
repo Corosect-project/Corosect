@@ -11,7 +11,7 @@
 esp_err_t wifi_init_sta(void);
 
 /* starts MQTT connection */
-void mqtt_app_start(void);
+esp_err_t mqtt_app_start(void);
 
 /* Publishes 2 byte uint to specified topic
  * val: 16 bit value to send

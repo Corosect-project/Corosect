@@ -70,7 +70,19 @@ menu "Corosect project configuration"
             default ""
             help
                 URI for the MQTT broker to connect to.
-                Note: needs to be in the form of mqtt://broker.address.here
+                Note: needs to be in the form of mqtt://broker.address.here:port
+
+        config MQTT_TIMEOUT
+            int "MQTT timeout (ms)"
+            default "5000"
+            help
+                Timeout for MQTT connection.
+
+        config MQTT_MAX_RETRY
+            int "MQTT Maximum retry"
+            default "3"
+            help
+                Maximum number of retries for mqtt connection.
     endmenu
 
     config SAMPLES
@@ -95,6 +107,26 @@ menu "Corosect project configuration"
         default 5000
         help
             Time to sleep in case of a failure during WiFi or MQTT connection.
+
+    config SENSOR_POWER_GPIO
+        int "CO2 sensor power GPIO num"
+        default 3
+        help
+            GPIO for CO2 sensor power.
+
+    config ENABLE_LED
+        bool "Enable indicator LED"
+        default n
+        help
+            Enable the usage of an indicator LED to show program state.
+
+    config LED_GPIO
+        int "LED GPIO num"
+        depends on ENABLE_LED
+        default 8
+        help
+            GPIO that a LED strip is attached to. 
+            Internal pin on the devkit is 8 by default.
 
 endmenu
 
