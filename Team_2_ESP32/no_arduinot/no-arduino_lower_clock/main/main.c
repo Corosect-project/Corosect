@@ -15,6 +15,7 @@
 #include "freertos/task.h"
 #include "esp_log.h"
 #include "led_strip.h"
+#include "esp_pm.h"
 
 #include "esp32_i2c.h"
 #include "wifi_mqtt.h"
@@ -203,7 +204,7 @@ static void initialize_i2c(){
     }
     printf("selftest result: %d%d\n",data[0], data[1]);
 }
-
+//esp_err_t esp_pm_lock_create(ESP_PM_CPU_FREQ_MAX,80, cpu, out_handle);
 
 
 void app_main(void){
@@ -255,6 +256,18 @@ void app_main(void){
     set_led_color(5,0,16);
 
     while(1){
+        //Configure clock speed and auto sleep disable
+        esp_pm_config_esp32c3_t pm_config = {
+            .max_freq_mhz = 80,
+            .min_freq_mhz = 80,
+            .light_sleep_enable = false,
+        };
+        //Enable clock speed
+        ESP_ERROR_CHECK(esp_pm_configure(&pm_config));
+
+
+
+
         for(int i = 0; i < SAMPLES; i++){
             measure_gas(data);
             co2_result = data[0] << 8 | data[1];
