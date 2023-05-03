@@ -213,6 +213,18 @@ void app_main(void){
     uint16_t temp_result;
     int test;
 
+
+    #if CONFIG_PM_ENABLE
+        //Configure clock speed and auto sleep disable
+        esp_pm_config_esp32c3_t pm_config = {
+            .max_freq_mhz = 80,
+            .min_freq_mhz = 80,
+            .light_sleep_enable = false
+        };
+        //Enable clock speed
+        ESP_ERROR_CHECK(esp_pm_configure(&pm_config));
+    #endif
+
     configure_pins();
     /* enable power output here so sensor has time to run through boot 
      * this can be moved later in the sequence if the ~3mA saved during WiFi/MQTT setup is worth it and doesn't require wait later on */
@@ -256,15 +268,9 @@ void app_main(void){
     set_led_color(5,0,16);
 
     while(1){
-        //Configure clock speed and auto sleep disable
-        esp_pm_config_esp32c3_t pm_config = {
-            .max_freq_mhz = 80,
-            .min_freq_mhz = 80,
-            .light_sleep_enable = false,
-        };
-        //Enable clock speed
-        ESP_ERROR_CHECK(esp_pm_configure(&pm_config));
+        
 
+    
 
 
 
