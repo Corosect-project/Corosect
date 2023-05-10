@@ -9,6 +9,7 @@
 #include <zephyr/logging/log.h>
 LOG_MODULE_REGISTER(app, LOG_LEVEL_DBG);
 
+#include "temp.h"
 #include "bluetooth.h"
 #define DISABLE_NH3
 #ifndef DISABLE_NH3
@@ -22,12 +23,12 @@ volatile bool quit = false;
 void button_handler(uint32_t state, uint32_t has_changed);
 
 void main(void) {
-  int32_t err;
   LOG_INF("Hello World! %s", CONFIG_BOARD);
 
   if (ERROR(dk_buttons_init(button_handler)))
     LOG_ERR("Error initializing buttons");
 
+  init_temp();
   start_bt();
 
 #ifndef DISABLE_NH3
@@ -38,10 +39,16 @@ void main(void) {
 #ifndef DISABLE_NH3
     read_and_print_nh3();
 #endif
-    k_sleep(K_MSEC(2000));
+    int32_t temp = read_temp();
+    // start_bt();
+    set_temp(temp);
+    k_sleep(K_SECONDS(2));
+    // stop_bt();
+    // k_sleep(K_SECONDS(30));
   }
 
   LOG_INF("QUIT\n");
+  uninit_temp();
   stop_bt();
 }
 
