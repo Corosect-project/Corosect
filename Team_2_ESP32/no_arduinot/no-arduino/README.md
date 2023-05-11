@@ -31,7 +31,7 @@ Sleep timings and intervals between measurements when awake can also be configur
 
 ### Build with
 ```
-idf.py build            # build
+idf.py build              # build
 idf.py -p [PORT] flash    # build and flash board.
 ```
 
