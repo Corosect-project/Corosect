@@ -24,6 +24,7 @@ Corosect project configuration ---> WiFi configuration ---> WiFi SSID           
 Corosect project configuration ---> MQTT configuration ---> MQTT Broker URI     # MQTT broker URI is also required, note this needs to be a URI in the form of mqtt://broker.address:port
 ```
 Optional configuration for I2C can be found under `Corosect project configuration ---> I2C configuration`, by default the program will use GPIO 3 for sensor power, GPIO 6 for SDA and GPIO 7 for SCL with a master clock frequency of 1MHz and assumes 0x29 as the sensor address.
+
 Indicator LED can be enabled by setting [x] Enable indicator LED under `Corosect project configuration --->`. Will by default use the ESP32C3 builtin LED on GPIO 8 and has only been tested with the ESP32C3 builtin LED but might work with external ones.
 
 Sleep timings and intervals between measurements when awake can also be configured under `Corosect project configuration --->`.
