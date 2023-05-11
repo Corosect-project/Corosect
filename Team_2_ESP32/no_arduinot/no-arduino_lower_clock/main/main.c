@@ -16,6 +16,7 @@
 #include "esp_log.h"
 #include "led_strip.h"
 #include "esp_pm.h"
+#include "soc/rtc.h"
 
 #include "esp32_i2c.h"
 #include "wifi_mqtt.h"
@@ -206,6 +207,10 @@ static void initialize_i2c(){
 }
 //esp_err_t esp_pm_lock_create(ESP_PM_CPU_FREQ_MAX,80, cpu, out_handle);
 
+void print_clock_speed(){ //Printing esp32-C3 clock speed
+    printf("Clock speed is %ld\n",rtc_clk_apb_freq_get()); //Printing clock speed
+}
+
 
 void app_main(void){
     uint8_t data[4]={0};
@@ -214,8 +219,8 @@ void app_main(void){
     int test;
 
 
-    #if CONFIG_PM_ENABLE
-        //Configure clock speed and auto sleep disable
+    #if CONFIG_PM_ENABLE //Enable power management if you want to use this function
+        //Configure clock speed to low 80Mhz and auto sleep disable
         esp_pm_config_esp32c3_t pm_config = {
             .max_freq_mhz = 80,
             .min_freq_mhz = 80,
@@ -268,12 +273,8 @@ void app_main(void){
     set_led_color(5,0,16);
 
     while(1){
+        print_clock_speed(); //Printing apb clock speed
         
-
-    
-
-
-
         for(int i = 0; i < SAMPLES; i++){
             measure_gas(data);
             co2_result = data[0] << 8 | data[1];
