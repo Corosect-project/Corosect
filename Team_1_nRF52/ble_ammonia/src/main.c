@@ -7,20 +7,22 @@
 #include <dk_buttons_and_leds.h>
 #include <zephyr/kernel.h>
 #include <zephyr/logging/log.h>
-LOG_MODULE_REGISTER(app, LOG_LEVEL_DBG);
 
-#include "temp.h"
 #include "bluetooth.h"
+#include "temp.h"
+
 #define DISABLE_NH3
 #ifndef DISABLE_NH3
 #include "nh3_sensor.h"
-#endif
+#endif  // DISABLE_NH3
+
+LOG_MODULE_REGISTER(app, LOG_LEVEL_DBG);
 
 #define ERROR(err) (err < 0)
 
-volatile bool quit = false;
-
 void button_handler(uint32_t state, uint32_t has_changed);
+
+volatile bool quit = false;
 
 void main(void) {
   LOG_INF("Hello World! %s", CONFIG_BOARD);

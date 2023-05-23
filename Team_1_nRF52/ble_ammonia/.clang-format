@@ -1,0 +1,14 @@
+BasedOnStyle: Google
+IndentWidth: 2
+# ContinuationIndentWidth: 2
+UseTab: Never
+ColumnLimit: 80
+AccessModifierOffset: -2
+AlignAfterOpenBracket: BlockIndent
+AllowShortIfStatementsOnASingleLine: AllIfsAndElse
+BinPackParameters: false
+BinPackArguments: false
+InsertNewlineAtEOF: true
+# BreakBeforeBinaryOperators: NonAssignment
+# AlignOperands: AlignAfterOperator
+
