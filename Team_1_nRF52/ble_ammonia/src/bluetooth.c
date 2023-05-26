@@ -28,8 +28,9 @@ ssize_t read_gatt(
 static void bt_connected(struct bt_conn *conn, uint8_t err);
 static void bt_disconnected(struct bt_conn *conn, uint8_t reason);
 
-int32_t temp = 0.0f;
+static int32_t temp = 0.0f;
 struct bt_conn *connection = NULL;
+static struct k_sem bt_done_sem;
 
 BT_GATT_SERVICE_DEFINE(
     sensor_service,
@@ -68,12 +69,15 @@ int start_bt() {
   if (ERROR(err)) {
     LOG_ERR("Error enabling BT %d", errno);
     return err;
-  } else bt_ready();
+  } else {
+    bt_ready();
+    k_sem_init(&bt_done_sem, 0, 1);
+  }
   return 0;
 }
 
 void stop_bt() {
-  bt_le_adv_stop();
+  // bt_le_adv_stop();
   bt_disable();
 }
 
@@ -109,6 +113,7 @@ void bt_connected(struct bt_conn *conn, uint8_t err) {
     LOG_ERR("Connection failed, %d", err);
   } else {
     LOG_INF("Connected");
+    bt_le_adv_stop();
     connection = conn;
   }
 }
@@ -116,4 +121,7 @@ void bt_connected(struct bt_conn *conn, uint8_t err) {
 void bt_disconnected(struct bt_conn *conn, uint8_t reason) {
   LOG_INF("Disconnected, reason %d", reason);
   connection = NULL;
+  k_sem_give(&bt_done_sem);
 }
+
+void wait_for_bt() { k_sem_take(&bt_done_sem, K_FOREVER); }

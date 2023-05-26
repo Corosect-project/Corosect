@@ -2,7 +2,7 @@
 
 #include <nrfx_temp.h>
 
-nrfx_temp_config_t config = NRFX_TEMP_DEFAULT_CONFIG;
+static nrfx_temp_config_t config = NRFX_TEMP_DEFAULT_CONFIG;
 
 void init_temp() { nrfx_temp_init(&config, NULL); }
 

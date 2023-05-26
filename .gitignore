@@ -3,3 +3,6 @@
 *.svd
 build/
 sdkconfig*
+
+Team_1_nRF52/**/*.ppk
+

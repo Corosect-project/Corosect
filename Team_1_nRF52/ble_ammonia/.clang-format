@@ -9,6 +9,8 @@ AllowShortIfStatementsOnASingleLine: AllIfsAndElse
 BinPackParameters: false
 BinPackArguments: false
 InsertNewlineAtEOF: true
+DerivePointerAlignment: false
+PointerAlignment: Right
 # BreakBeforeBinaryOperators: NonAssignment
 # AlignOperands: AlignAfterOperator
 

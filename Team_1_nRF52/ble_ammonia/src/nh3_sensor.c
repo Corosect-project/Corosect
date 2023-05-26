@@ -6,25 +6,19 @@
 #include "nh3_sensor.h"
 
 #include <nrfx_spim.h>
+#include <zephyr/kernel.h>
 #include <zephyr/logging/log.h>
 
 LOG_MODULE_DECLARE(app, LOG_LEVEL_DBG);
 
-/**
- * @brief Tries to read nh3 data from the spi
- *
- * @return 0 on success and a negative error code on error
- */
-int read_nh3_data();
-
-nrfx_spim_t instance = NRFX_SPIM_INSTANCE(0);
-nrfx_spim_config_t config = NRFX_SPIM_DEFAULT_CONFIG(
+static nrfx_spim_t instance = NRFX_SPIM_INSTANCE(0);
+static nrfx_spim_config_t config = NRFX_SPIM_DEFAULT_CONFIG(
     SCK_PIN, NRFX_SPIM_PIN_NOT_USED, SDO_PIN, NRFX_SPIM_PIN_NOT_USED
 );
 
-uint8_t rx_buff[3];
-struct nh3_spi_data data;
-nrfx_spim_xfer_desc_t transf = NRFX_SPIM_XFER_RX(rx_buff, 3);
+static uint8_t rx_buff[3];
+static struct nh3_spi_data data;
+static nrfx_spim_xfer_desc_t transf = NRFX_SPIM_XFER_RX(rx_buff, 3);
 
 static inline void set_cs() {
   nrf_gpio_pin_set(CS_PIN);
