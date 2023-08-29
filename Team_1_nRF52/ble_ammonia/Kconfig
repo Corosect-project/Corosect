@@ -1,0 +1,5 @@
+source "Kconfig.zephyr"
+
+config DISABLE_NH3
+  bool 'Disable nh3 spi code'
+  default n
