@@ -11,6 +11,6 @@
 int start_bt();
 void stop_bt();
 void set_temp(int32_t temp);
-void wait_for_bt();
+void send_data();
 
 #endif /* D03F4BBC_6443_4B62_AD6C_C08762252757 */

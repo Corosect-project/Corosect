@@ -12,12 +12,12 @@
 #include <zephyr/bluetooth/gatt.h>
 #include <zephyr/bluetooth/uuid.h>
 #include <zephyr/logging/log.h>
+#include <zephyr/sys/byteorder.h>
 
 LOG_MODULE_DECLARE(app, LOG_LEVEL_DBG);
 
 #define ERROR(err) (err < 0)
 
-void bt_ready();
 ssize_t read_gatt(
     struct bt_conn *conn,
     const struct bt_gatt_attr *attr,
@@ -25,19 +25,15 @@ ssize_t read_gatt(
     uint16_t len,
     uint16_t offset
 );
-static void bt_connected(struct bt_conn *conn, uint8_t err);
-static void bt_disconnected(struct bt_conn *conn, uint8_t reason);
 
 static int32_t temp = 0.0f;
-struct bt_conn *connection = NULL;
-static struct k_sem bt_done_sem;
 
 BT_GATT_SERVICE_DEFINE(
     sensor_service,
     BT_GATT_PRIMARY_SERVICE(BT_UUID_ESS),
     BT_GATT_CHARACTERISTIC(
         BT_UUID_TEMPERATURE,
-        BT_GATT_CHRC_READ | BT_GATT_CHRC_NOTIFY,
+        BT_GATT_CHRC_READ | BT_GATT_CHRC_BROADCAST,
         BT_GATT_PERM_READ,
         read_gatt,
         NULL,
@@ -53,26 +49,13 @@ BT_GATT_SERVICE_DEFINE(
     ),
 );
 
-static const struct bt_data ad[] = {
-    BT_DATA_BYTES(BT_DATA_FLAGS, (BT_LE_AD_GENERAL | BT_LE_AD_NO_BREDR)),
-    BT_DATA_BYTES(BT_DATA_UUID16_ALL, BT_UUID_16_ENCODE(BT_UUID_ESS_VAL)),
-    BT_DATA_BYTES(BT_DATA_UUID128_ALL, CUSTOM_UUID_VAL),
-};
-
-BT_CONN_CB_DEFINE(con_calbacks) = {
-    .connected = bt_connected,
-    .disconnected = bt_disconnected,
-};
-
 int start_bt() {
   int err = bt_enable(NULL);
   if (ERROR(err)) {
     LOG_ERR("Error enabling BT %d", errno);
     return err;
-  } else {
-    bt_ready();
-    k_sem_init(&bt_done_sem, 0, 1);
   }
+
   return 0;
 }
 
@@ -86,15 +69,50 @@ void set_temp(int32_t newTemp) {
   struct bt_gatt_attr *attr =
       bt_gatt_find_by_uuid(&sensor_service.attrs[0], 0, BT_UUID_TEMPERATURE);
   LOG_DBG("%p: %d", (void *)attr, *(int *)attr->user_data);
-  if (attr) bt_gatt_notify(connection, attr, attr->user_data, sizeof(temp));
 }
 
-void bt_ready() {
-  int err = bt_le_adv_start(BT_LE_ADV_CONN_NAME, ad, ARRAY_SIZE(ad), 0, 0);
+// clang-format off
+#define INT_TO_LE_BYTE_ARRAY(val32) { \
+      val32 & 0x000000ff,             \
+      (val32 >> 8) & 0x000000ff,      \
+      (val32 >> 16) & 0x000000ff,     \
+      (val32 >> 24) & 0x000000ff,     \
+  }
+// clang-format on
+#define SPREAD_BYTE_4(data) data[0], data[1], data[2], data[3]
+
+void send_data() {
+  struct bt_gatt_attr *attr =
+      bt_gatt_find_by_uuid(&sensor_service.attrs[0], 0, BT_UUID_TEMPERATURE);
+  if (!attr) {
+    LOG_ERR("Error getting gatt attribute");
+    return;
+  }
+
+  const void *data = attr->user_data;
+  const uint32_t value = *(uint32_t *)data;
+  const uint8_t fdata[] = INT_TO_LE_BYTE_ARRAY(value);
+
+  LOG_DBG("Data: %x", value);
+  LOG_DBG("%x %x %x %x", SPREAD_BYTE_4(fdata));
+
+  struct bt_data ad[] = {
+      BT_DATA_BYTES(BT_DATA_FLAGS, (BT_LE_AD_NO_BREDR)),
+      BT_DATA_BYTES(
+          BT_DATA_SVC_DATA16,
+          BT_UUID_16_ENCODE(BT_UUID_ESS_VAL),
+          SPREAD_BYTE_4(fdata)
+      ),
+  };
+  LOG_DBG("%p: %d", (void *)attr, *(uint32_t *)data);
+
+  int err = bt_le_adv_start(BT_LE_ADV_NCONN_NAME, ad, ARRAY_SIZE(ad), 0, 0);
   if (err == -ENOMEM) LOG_ERR("ENOMEM\n");
   else if (err == -ECONNREFUSED || err == -EIO) LOG_ERR("ECONNREFUSED\n");
 
-  LOG_DBG("%d\n", err);
+  LOG_DBG("Error %d\n", err);
+  k_sleep(K_SECONDS(1));
+  bt_le_adv_stop();
 }
 
 ssize_t read_gatt(
@@ -107,21 +125,3 @@ ssize_t read_gatt(
   void *value = attr->user_data;
   return bt_gatt_attr_read(conn, attr, buf, len, offset, value, strlen(value));
 }
-
-void bt_connected(struct bt_conn *conn, uint8_t err) {
-  if (err) {
-    LOG_ERR("Connection failed, %d", err);
-  } else {
-    LOG_INF("Connected");
-    bt_le_adv_stop();
-    connection = conn;
-  }
-}
-
-void bt_disconnected(struct bt_conn *conn, uint8_t reason) {
-  LOG_INF("Disconnected, reason %d", reason);
-  connection = NULL;
-  k_sem_give(&bt_done_sem);
-}
-
-void wait_for_bt() { k_sem_take(&bt_done_sem, K_FOREVER); }

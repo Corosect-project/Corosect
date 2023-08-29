@@ -40,6 +40,7 @@ void main(void) {
 #ifndef CONFIG_DISABLE_NH3
   init_nh3();
 #endif
+  start_bt();
 
   while (!quit) {
 #ifndef CONFIG_DISABLE_NH3
@@ -53,23 +54,16 @@ void main(void) {
     // Read temp and wait for 2 seconds for bt;
     int32_t temp = read_temp();
     set_temp(temp);
-    wait_for_bt();
+    send_data();
 
     // Got to sleep
     uninit_temp();
     stop_bt();
-
-    // Wait for rtc trigger
-    // wait_for_rtc(&sleep_sem);
-    // pm_state_force(
-    //     0, &(const struct pm_state_info){PM_STATE_SUSPEND_TO_IDLE, 0, 0}
-    // );
-    k_sleep(K_SECONDS(30));
+    k_sleep(K_SECONDS(10));
   }
 
   LOG_INF("QUIT\n");
-  // uninit_temp();
-  // stop_bt();
+  stop_bt();
 }
 
 void button_handler(uint32_t state, uint32_t has_changed) {
